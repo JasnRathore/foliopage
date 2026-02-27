@@ -1,9 +1,12 @@
 import { NextRequest } from "next/server";
+import type { ProfileTemplateId } from "@/lib/profile-templates";
 import {
   deleteProfile,
   getProfileForUser,
   updateProfile,
   type AccentColor,
+  type DbProfileSocials,
+  type ResumeBlockType,
 } from "@/lib/pseudo-db";
 import { fail, ok, readJson, requireAuth } from "@/lib/api-route-utils";
 
@@ -15,6 +18,16 @@ interface UpdateProfileBody {
   gradYear?: string;
   internshipStatus?: string;
   accentColor?: AccentColor;
+  templateId?: ProfileTemplateId;
+  resumeBlockType?: ResumeBlockType;
+  contactEmail?: string;
+  emailVisible?: boolean;
+  socials?: Partial<{
+    linkedin: Partial<DbProfileSocials["linkedin"]>;
+    github: Partial<DbProfileSocials["github"]>;
+    twitter: Partial<DbProfileSocials["twitter"]>;
+    instagram: Partial<DbProfileSocials["instagram"]>;
+  }>;
 }
 
 interface RouteContext {
@@ -66,4 +79,3 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return fail((error as Error).message, 404);
   }
 }
-

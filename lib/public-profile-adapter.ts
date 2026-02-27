@@ -1,4 +1,5 @@
 import type { PublicProfileApi } from "@/lib/site-api";
+import { defaultProfileTemplateId } from "@/lib/profile-templates";
 import type { ProfileData } from "@/lib/site-data";
 
 function formatResumeSize(fileSizeKb: number): string {
@@ -14,12 +15,17 @@ export function mapPublicApiProfileToProfileData(profile: PublicProfileApi): Pro
     gradYear: profile.gradYear,
     internshipStatus: profile.internshipStatus,
     accentColor: profile.accentColor,
+    templateId: profile.templateId ?? defaultProfileTemplateId,
     plan: "free",
     summary: "Profile published with foliopage.",
     resume: {
       url: profile.resume?.fileUrl ?? "#",
       fileSizeLabel: profile.resume ? formatResumeSize(profile.resume.fileSizeKb) : "No resume uploaded",
       lastUpdated: profile.resume?.updatedAt.slice(0, 10) ?? profile.publishedAt.slice(0, 10),
+      displayMode: profile.resumeBlockType,
+      summary: profile.resume
+        ? "Most recent resume upload from dashboard."
+        : "No resume uploaded yet.",
     },
     projects: profile.projects.map((project) => ({
       title: project.title,
@@ -33,16 +39,18 @@ export function mapPublicApiProfileToProfileData(profile: PublicProfileApi): Pro
       demoUrl: project.demoUrl || undefined,
     })),
     skills: {
-      languages: [],
-      frameworks: [],
-      tools: [],
-      other: profile.skills,
+      languages: profile.skills.languages,
+      frameworks: profile.skills.frameworks,
+      tools: profile.skills.tools,
+      other: profile.skills.other,
     },
     experiences: [],
     contact: {
-      email: profile.contact.email,
-      github: "#",
-      linkedin: "#",
+      email: profile.contact.email ?? undefined,
+      github: profile.contact.socials.github ?? undefined,
+      linkedin: profile.contact.socials.linkedin ?? undefined,
+      twitter: profile.contact.socials.twitter ?? undefined,
+      instagram: profile.contact.socials.instagram ?? undefined,
     },
     childPages: [],
   };

@@ -1,6 +1,9 @@
+import type { ProfileTemplateId } from "@/lib/profile-templates";
+
 export type PlanType = "free" | "pro";
 export type AccentColor = "blue" | "purple" | "emerald" | "black";
 export type CheckoutPlan = "pro_monthly" | "pro_annual";
+export type ResumeBlockType = "with_preview" | "without_preview";
 
 export interface DbUser {
   id: string;
@@ -23,6 +26,27 @@ export interface DbResume {
   updatedAt: string;
 }
 
+export type SocialPlatform = "linkedin" | "github" | "twitter" | "instagram";
+
+export interface DbSocialLink {
+  url: string;
+  visible: boolean;
+}
+
+export interface DbProfileSocials {
+  linkedin: DbSocialLink;
+  github: DbSocialLink;
+  twitter: DbSocialLink;
+  instagram: DbSocialLink;
+}
+
+export interface DbProfileSkills {
+  languages: string[];
+  frameworks: string[];
+  tools: string[];
+  other: string[];
+}
+
 export interface DbProfile {
   id: string;
   userId: string;
@@ -33,11 +57,16 @@ export interface DbProfile {
   gradYear: string;
   internshipStatus: string;
   accentColor: AccentColor;
+  templateId: ProfileTemplateId;
   published: boolean;
   createdAt: string;
   updatedAt: string;
-  skills: string[];
+  skills: DbProfileSkills;
   resume: DbResume | null;
+  contactEmail: string;
+  emailVisible: boolean;
+  resumeBlockType: ResumeBlockType;
+  socials: DbProfileSocials;
 }
 
 export interface DbProject {
@@ -62,6 +91,8 @@ interface CreateProfileInput {
   gradYear: string;
   internshipStatus: string;
   accentColor: AccentColor;
+  templateId?: ProfileTemplateId;
+  resumeBlockType?: ResumeBlockType;
 }
 
 interface UpdateProfileInput {
@@ -72,6 +103,11 @@ interface UpdateProfileInput {
   gradYear?: string;
   internshipStatus?: string;
   accentColor?: AccentColor;
+  templateId?: ProfileTemplateId;
+  resumeBlockType?: ResumeBlockType;
+  contactEmail?: string;
+  emailVisible?: boolean;
+  socials?: Partial<Record<SocialPlatform, Partial<DbSocialLink>>>;
 }
 
 interface UpsertResumeInput {
@@ -106,12 +142,20 @@ interface PublicProfileResponse {
   gradYear: string;
   internshipStatus: string;
   accentColor: AccentColor;
-  skills: string[];
+  templateId: ProfileTemplateId;
+  skills: DbProfileSkills;
   resume: DbResume | null;
   projects: DbProject[];
   contact: {
-    email: string;
+    email: string | null;
+    socials: {
+      linkedin: string | null;
+      github: string | null;
+      twitter: string | null;
+      instagram: string | null;
+    };
   };
+  resumeBlockType: ResumeBlockType;
   publishedAt: string;
 }
 
@@ -183,12 +227,156 @@ function parseSkillsFromCsv(value: string): string[] {
     .filter((item) => item.length > 0);
 }
 
+function normalizeSkills(values: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const value of values) {
+    const item = value.trim();
+    if (!item) continue;
+    const key = item.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(item);
+  }
+  return normalized;
+}
+
 function normalizeHighlights(values: string[]): string[] {
   return values.map((item) => item.trim()).filter((item) => item.length > 0).slice(0, 3);
 }
 
 function normalizeTechStack(values: string[]): string[] {
   return values.map((item) => item.trim()).filter((item) => item.length > 0).slice(0, 10);
+}
+
+function createDefaultSocials(): DbProfileSocials {
+  return {
+    linkedin: { url: "", visible: false },
+    github: { url: "", visible: false },
+    twitter: { url: "", visible: false },
+    instagram: { url: "", visible: false },
+  };
+}
+
+function createDefaultSkills(): DbProfileSkills {
+  return {
+    languages: [],
+    frameworks: [],
+    tools: [],
+    other: [],
+  };
+}
+
+function normalizeResumeBlockType(value: unknown): ResumeBlockType {
+  return value === "with_preview" ? "with_preview" : "without_preview";
+}
+
+const profileTemplateIds = [
+  "linkboard",
+  "dusk",
+  "chalk",
+  "forest",
+  "neon",
+  "ivory",
+  "blueprint",
+  "terracotta",
+  "void",
+  "candy",
+] as const satisfies readonly ProfileTemplateId[];
+
+function normalizeTemplateId(value: unknown): ProfileTemplateId {
+  if (typeof value === "string" && profileTemplateIds.includes(value as ProfileTemplateId)) {
+    return value as ProfileTemplateId;
+  }
+  return "linkboard";
+}
+
+function normalizeProfileSkills(input: DbProfileSkills | string[]): DbProfileSkills {
+  if (Array.isArray(input)) {
+    return {
+      ...createDefaultSkills(),
+      other: normalizeSkills(input),
+    };
+  }
+
+  return {
+    languages: normalizeSkills(input.languages ?? []),
+    frameworks: normalizeSkills(input.frameworks ?? []),
+    tools: normalizeSkills(input.tools ?? []),
+    other: normalizeSkills(input.other ?? []),
+  };
+}
+
+function withProfileDefaults(profile: DbProfile): DbProfile {
+  const rawSkills = profile.skills as unknown;
+  return {
+    ...profile,
+    templateId: normalizeTemplateId(
+      (profile as DbProfile & { templateId?: unknown }).templateId,
+    ),
+    contactEmail: profile.contactEmail ?? "",
+    emailVisible: profile.emailVisible ?? true,
+    resumeBlockType: normalizeResumeBlockType(
+      (profile as DbProfile & { resumeBlockType?: unknown }).resumeBlockType,
+    ),
+    skills: normalizeProfileSkills(
+      Array.isArray(rawSkills)
+        ? (rawSkills as string[])
+        : ((rawSkills as DbProfileSkills | undefined) ?? createDefaultSkills()),
+    ),
+    socials: {
+      ...createDefaultSocials(),
+      ...(profile.socials ?? {}),
+      linkedin: {
+        ...createDefaultSocials().linkedin,
+        ...(profile.socials?.linkedin ?? {}),
+      },
+      github: {
+        ...createDefaultSocials().github,
+        ...(profile.socials?.github ?? {}),
+      },
+      twitter: {
+        ...createDefaultSocials().twitter,
+        ...(profile.socials?.twitter ?? {}),
+      },
+      instagram: {
+        ...createDefaultSocials().instagram,
+        ...(profile.socials?.instagram ?? {}),
+      },
+    },
+  };
+}
+
+function mergeSocials(
+  current: DbProfileSocials,
+  input: UpdateProfileInput["socials"],
+): DbProfileSocials {
+  if (!input) {
+    return current;
+  }
+
+  return {
+    linkedin: {
+      ...current.linkedin,
+      ...(input.linkedin ?? {}),
+      url: input.linkedin?.url?.trim() ?? current.linkedin.url,
+    },
+    github: {
+      ...current.github,
+      ...(input.github ?? {}),
+      url: input.github?.url?.trim() ?? current.github.url,
+    },
+    twitter: {
+      ...current.twitter,
+      ...(input.twitter ?? {}),
+      url: input.twitter?.url?.trim() ?? current.twitter.url,
+    },
+    instagram: {
+      ...current.instagram,
+      ...(input.instagram ?? {}),
+      url: input.instagram?.url?.trim() ?? current.instagram.url,
+    },
+  };
 }
 
 export function getPlanLimits(planType: PlanType): { maxProjects: number } {
@@ -280,7 +468,9 @@ export function createCheckoutSession(
 }
 
 export function listProfilesForUser(userId: string): DbProfile[] {
-  return [...profilesById.values()].filter((profile) => profile.userId === userId);
+  return [...profilesById.values()]
+    .filter((profile) => profile.userId === userId)
+    .map((profile) => withProfileDefaults(profile));
 }
 
 export function createProfile(userId: string, input: CreateProfileInput): DbProfile {
@@ -302,11 +492,16 @@ export function createProfile(userId: string, input: CreateProfileInput): DbProf
     gradYear: input.gradYear,
     internshipStatus: input.internshipStatus,
     accentColor: input.accentColor,
+    templateId: normalizeTemplateId(input.templateId),
     published: false,
     createdAt,
     updatedAt: createdAt,
-    skills: [],
+    skills: createDefaultSkills(),
     resume: null,
+    contactEmail: "",
+    emailVisible: true,
+    resumeBlockType: normalizeResumeBlockType(input.resumeBlockType),
+    socials: createDefaultSocials(),
   };
 
   profilesById.set(profile.id, profile);
@@ -318,7 +513,11 @@ export function getProfileForUser(profileId: string, userId: string): DbProfile 
   if (!profile || profile.userId !== userId) {
     throw new Error("Profile not found.");
   }
-  return profile;
+  const safeProfile = withProfileDefaults(profile);
+  if (safeProfile !== profile) {
+    profilesById.set(profileId, safeProfile);
+  }
+  return safeProfile;
 }
 
 export function updateProfile(
@@ -340,6 +539,19 @@ export function updateProfile(
   const updated: DbProfile = {
     ...profile,
     ...input,
+    templateId:
+      input.templateId !== undefined
+        ? normalizeTemplateId(input.templateId)
+        : profile.templateId,
+    resumeBlockType:
+      input.resumeBlockType !== undefined
+        ? normalizeResumeBlockType(input.resumeBlockType)
+        : profile.resumeBlockType,
+    contactEmail:
+      input.contactEmail !== undefined ? input.contactEmail.trim() : profile.contactEmail,
+    emailVisible:
+      input.emailVisible !== undefined ? Boolean(input.emailVisible) : profile.emailVisible,
+    socials: mergeSocials(profile.socials, input.socials),
     updatedAt: nowIso(),
   };
   profilesById.set(profileId, updated);
@@ -371,11 +583,15 @@ export function setPublished(
   return updated;
 }
 
-export function setSkills(profileId: string, userId: string, skills: string[]): DbProfile {
+export function setSkills(
+  profileId: string,
+  userId: string,
+  skills: DbProfileSkills | string[],
+): DbProfile {
   const profile = getProfileForUser(profileId, userId);
   const updated = {
     ...profile,
-    skills,
+    skills: normalizeProfileSkills(skills),
     updatedAt: nowIso(),
   };
   profilesById.set(profileId, updated);
@@ -552,28 +768,54 @@ export function getPublicProfileBySlug(
   if (!profile) {
     throw new Error("Published profile not found.");
   }
+  const safeProfile = withProfileDefaults(profile);
+  if (safeProfile !== profile) {
+    profilesById.set(profile.id, safeProfile);
+  }
 
   const user = usersById.get(profile.userId);
   if (!user) {
     throw new Error("Profile owner not found.");
   }
 
-  const projects = getProjectsForProfile(profile.id);
+  const projects = getProjectsForProfile(safeProfile.id);
+  const emailValue = safeProfile.contactEmail.trim() || user.email;
+  const visibleSocials = {
+    linkedin:
+      safeProfile.socials.linkedin.visible && safeProfile.socials.linkedin.url
+        ? safeProfile.socials.linkedin.url
+        : null,
+    github:
+      safeProfile.socials.github.visible && safeProfile.socials.github.url
+        ? safeProfile.socials.github.url
+        : null,
+    twitter:
+      safeProfile.socials.twitter.visible && safeProfile.socials.twitter.url
+        ? safeProfile.socials.twitter.url
+        : null,
+    instagram:
+      safeProfile.socials.instagram.visible && safeProfile.socials.instagram.url
+        ? safeProfile.socials.instagram.url
+        : null,
+  };
   const payload: PublicProfileResponse = {
-    slug: profile.slug,
-    name: profile.name,
-    headline: profile.headline,
-    university: profile.university,
-    gradYear: profile.gradYear,
-    internshipStatus: profile.internshipStatus,
-    accentColor: profile.accentColor,
-    skills: recruiterView ? [] : profile.skills,
-    resume: profile.resume,
+    slug: safeProfile.slug,
+    name: safeProfile.name,
+    headline: safeProfile.headline,
+    university: safeProfile.university,
+    gradYear: safeProfile.gradYear,
+    internshipStatus: safeProfile.internshipStatus,
+    accentColor: safeProfile.accentColor,
+    templateId: safeProfile.templateId,
+    skills: recruiterView ? createDefaultSkills() : safeProfile.skills,
+    resume: safeProfile.resume,
     projects,
     contact: {
-      email: user.email,
+      email: safeProfile.emailVisible ? emailValue : null,
+      socials: visibleSocials,
     },
-    publishedAt: profile.updatedAt,
+    resumeBlockType: safeProfile.resumeBlockType,
+    publishedAt: safeProfile.updatedAt,
   };
 
   return payload;

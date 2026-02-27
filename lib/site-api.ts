@@ -2,9 +2,13 @@ import type {
   AccentColor,
   CheckoutPlan,
   DbProfile,
+  DbProfileSocials,
+  DbProfileSkills,
   DbProject,
   PlanType,
+  ResumeBlockType,
 } from "@/lib/pseudo-db";
+import type { ProfileTemplateId } from "@/lib/profile-templates";
 
 interface ApiEnvelope<T> {
   ok: boolean;
@@ -133,11 +137,21 @@ export interface ProfilePayload {
   gradYear?: string;
   internshipStatus?: string;
   accentColor?: AccentColor;
+  templateId?: ProfileTemplateId;
+  resumeBlockType?: ResumeBlockType;
+  contactEmail?: string;
+  emailVisible?: boolean;
+  socials?: Partial<{
+    linkedin: Partial<DbProfileSocials["linkedin"]>;
+    github: Partial<DbProfileSocials["github"]>;
+    twitter: Partial<DbProfileSocials["twitter"]>;
+    instagram: Partial<DbProfileSocials["instagram"]>;
+  }>;
 }
 
 export function createProfileApi(
   token: string,
-  payload: Required<ProfilePayload>,
+  payload: ProfilePayload,
 ): Promise<{ profile: DbProfile }> {
   return request("/api/profiles", { method: "POST", token, body: payload });
 }
@@ -201,7 +215,7 @@ export function deleteResumeApi(token: string, profileId: string): Promise<{ pro
 export function setSkillsApi(
   token: string,
   profileId: string,
-  skills: string[] | string,
+  skills: DbProfileSkills | string[] | string,
 ): Promise<{ profile: DbProfile }> {
   return request(`/api/profiles/${profileId}/skills`, {
     method: "PUT",
@@ -303,7 +317,8 @@ export interface PublicProfileApi {
   gradYear: string;
   internshipStatus: string;
   accentColor: AccentColor;
-  skills: string[];
+  templateId: ProfileTemplateId;
+  skills: DbProfileSkills;
   resume: {
     fileName: string;
     fileUrl: string;
@@ -312,8 +327,15 @@ export interface PublicProfileApi {
   } | null;
   projects: DbProject[];
   contact: {
-    email: string;
+    email: string | null;
+    socials: {
+      linkedin: string | null;
+      github: string | null;
+      twitter: string | null;
+      instagram: string | null;
+    };
   };
+  resumeBlockType: ResumeBlockType;
   publishedAt: string;
 }
 

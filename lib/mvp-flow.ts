@@ -1,3 +1,5 @@
+import type { ProfileTemplateId } from "@/lib/profile-templates";
+
 export type InternshipStatus =
   | "Seeking Summer 2026 internship"
   | "Open to Fall 2026 co-op"
@@ -23,12 +25,27 @@ export interface ProfileDraft {
   gradYear: string;
   internshipStatus: InternshipStatus;
   accentColor: "blue" | "purple" | "emerald" | "black";
+  templateId: ProfileTemplateId;
   slug: string;
   plan: PlanType;
+  resumeBlockType: "with_preview" | "without_preview";
   resumeFileName: string;
   resumeFileSizeKb: number;
   resumeUpdatedAt: string;
-  skillsInput: string;
+  skillsLanguagesInput: string;
+  skillsFrameworksInput: string;
+  skillsToolsInput: string;
+  skillsOtherInput: string;
+  contactEmail: string;
+  emailVisible: boolean;
+  linkedinUrl: string;
+  linkedinVisible: boolean;
+  githubUrl: string;
+  githubVisible: boolean;
+  twitterUrl: string;
+  twitterVisible: boolean;
+  instagramUrl: string;
+  instagramVisible: boolean;
   published: boolean;
   projects: ProjectDraft[];
 }
@@ -65,12 +82,27 @@ export function createDefaultDraft(): ProfileDraft {
     gradYear: "2027",
     internshipStatus: "Seeking Summer 2026 internship",
     accentColor: "blue",
+    templateId: "linkboard",
     slug: "",
     plan: "free",
+    resumeBlockType: "without_preview",
     resumeFileName: "",
     resumeFileSizeKb: 0,
     resumeUpdatedAt: now,
-    skillsInput: "",
+    skillsLanguagesInput: "",
+    skillsFrameworksInput: "",
+    skillsToolsInput: "",
+    skillsOtherInput: "",
+    contactEmail: "",
+    emailVisible: true,
+    linkedinUrl: "",
+    linkedinVisible: false,
+    githubUrl: "",
+    githubVisible: false,
+    twitterUrl: "",
+    twitterVisible: false,
+    instagramUrl: "",
+    instagramVisible: false,
     published: false,
     projects: [createProjectDraft("project-1")],
   };
@@ -82,4 +114,3 @@ export function parseSkills(value: string): string[] {
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
 }
-

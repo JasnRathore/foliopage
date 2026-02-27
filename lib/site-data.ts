@@ -1,10 +1,16 @@
+import type { ProfileTemplateId } from "@/lib/profile-templates";
+
 export type AccentColor = "blue" | "purple" | "emerald" | "black";
 export type PlanType = "free" | "pro";
+export type ResumeDisplayMode = "with_preview" | "without_preview";
 
 export interface ResumeData {
   url: string;
   fileSizeLabel: string;
   lastUpdated: string;
+  displayMode?: ResumeDisplayMode;
+  previewUrl?: string;
+  summary?: string;
 }
 
 export interface ProjectData {
@@ -34,9 +40,11 @@ export interface SkillsData {
 }
 
 export interface ContactData {
-  email: string;
-  github: string;
-  linkedin: string;
+  email?: string;
+  github?: string;
+  linkedin?: string;
+  twitter?: string;
+  instagram?: string;
   calendar?: string;
 }
 
@@ -62,6 +70,7 @@ export interface ProfileData {
   location?: string;
   internshipStatus: string;
   accentColor: AccentColor;
+  templateId?: ProfileTemplateId;
   plan: PlanType;
   summary: string;
   resume: ResumeData;
@@ -112,13 +121,16 @@ const profiles: ProfileData[] = [
     location: "Chicago, IL",
     internshipStatus: "Seeking Summer 2026 internship",
     accentColor: "blue",
+    templateId: "linkboard",
     plan: "free",
     summary:
       "I build practical products with clear UX and measurable outcomes. My focus is full-stack web apps and collaboration-heavy engineering work.",
     resume: {
-      url: "#",
+      url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
       fileSizeLabel: "426 KB PDF",
       lastUpdated: "2026-02-12",
+      displayMode: "with_preview",
+      summary: "Product-focused resume with project outcomes and impact metrics.",
     },
     projects: [
       {
@@ -258,6 +270,7 @@ const profiles: ProfileData[] = [
     location: "Boston, MA",
     internshipStatus: "Open to Fall 2026 co-op",
     accentColor: "emerald",
+    templateId: "linkboard",
     plan: "pro",
     summary:
       "I build software that is easy to adopt and hard to break. I care about maintainable systems and practical product detail.",
@@ -265,6 +278,8 @@ const profiles: ProfileData[] = [
       url: "#",
       fileSizeLabel: "512 KB PDF",
       lastUpdated: "2026-02-10",
+      displayMode: "without_preview",
+      summary: "Resume available on request.",
     },
     projects: [
       {

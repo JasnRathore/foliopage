@@ -1,5 +1,11 @@
 import { NextRequest } from "next/server";
-import { createProfile, listProfilesForUser, type AccentColor } from "@/lib/pseudo-db";
+import type { ProfileTemplateId } from "@/lib/profile-templates";
+import {
+  createProfile,
+  listProfilesForUser,
+  type AccentColor,
+  type ResumeBlockType,
+} from "@/lib/pseudo-db";
 import { fail, ok, readJson, requireAuth } from "@/lib/api-route-utils";
 
 interface CreateProfileBody {
@@ -10,6 +16,8 @@ interface CreateProfileBody {
   gradYear?: string;
   internshipStatus?: string;
   accentColor?: AccentColor;
+  templateId?: ProfileTemplateId;
+  resumeBlockType?: ResumeBlockType;
 }
 
 export async function GET(request: NextRequest) {
@@ -52,6 +60,8 @@ export async function POST(request: NextRequest) {
       gradYear: body.gradYear!.trim(),
       internshipStatus: body.internshipStatus!.trim(),
       accentColor: body.accentColor!,
+      templateId: body.templateId,
+      resumeBlockType: body.resumeBlockType,
     });
 
     return ok({ profile }, 201);
