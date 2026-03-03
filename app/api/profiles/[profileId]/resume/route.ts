@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { deleteResume, upsertResume } from "@/lib/pseudo-db";
+import { deleteResume, upsertResume } from "@/lib/db";
 import { fail, ok, readJson, requireAuth } from "@/lib/api-route-utils";
 
 const MAX_FILE_SIZE_KB = 5120;
@@ -15,10 +15,11 @@ interface RouteContext {
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const auth = await requireAuth(request);
+  if (auth.response) {
+    return auth.response;
   }
+  const user = auth.user as any;
 
   try {
     const body = await readJson<ResumeBody>(request);
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const { profileId } = await context.params;
-    const profile = upsertResume(profileId, user.id, {
+    const profile = await upsertResume(profileId, user.id, {
       fileName,
       fileSizeKb,
       fileUrl: body.fileUrl,
@@ -46,14 +47,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const auth = await requireAuth(request);
+  if (auth.response) {
+    return auth.response;
   }
+  const user = auth.user as any;
 
   try {
     const { profileId } = await context.params;
-    const profile = deleteResume(profileId, user.id);
+    const profile = await deleteResume(profileId, user.id);
     return ok({ profile });
   } catch (error) {
     return fail((error as Error).message, 400);

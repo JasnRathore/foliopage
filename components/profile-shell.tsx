@@ -23,7 +23,7 @@ import type {
   ProfileData,
   ResumeData,
   ResumeDisplayMode,
-} from "@/lib/site-data";
+} from "@/lib/profile-data";
 import type { ProfileTemplateStyles } from "@/lib/profile-templates";
 
 interface ProfileShellProps {
@@ -3177,7 +3177,7 @@ function VerdictLayout({
     <div>
 
       {/* ── HERO — full-bleed inverted black zone ─────────────────────── */}
-      <header className={t.stackHeroCard}>
+      <header className={`${t.stackHeroCard} px-8 sm:px-12 lg:px-20`}>
 
         {/* Pills (on dark bg) */}
         <div className="flex flex-wrap gap-2">

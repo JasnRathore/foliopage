@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { reorderProjects } from "@/lib/pseudo-db";
+import { reorderProjects } from "@/lib/db";
 import { fail, ok, readJson, requireAuth } from "@/lib/api-route-utils";
 
 interface ReorderBody {
@@ -11,10 +11,11 @@ interface RouteContext {
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const auth = await requireAuth(request);
+  if (auth.response) {
+    return auth.response;
   }
+  const user = auth.user as any;
 
   try {
     const body = await readJson<ReorderBody>(request);
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const { profileId } = await context.params;
-    const projects = reorderProjects(profileId, user.id, body.projectIds);
+    const projects = await reorderProjects(profileId, user.id, body.projectIds);
     return ok({ projects });
   } catch (error) {
     return fail((error as Error).message, 400);

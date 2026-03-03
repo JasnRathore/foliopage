@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { resetPassword } from "@/lib/pseudo-db";
+import { resetPassword } from "@/lib/db";
 import { fail, ok, readJson } from "@/lib/api-route-utils";
 
 interface PasswordResetBody {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return fail("Email and nextPassword are required.", 422);
     }
 
-    const user = resetPassword(email, nextPassword);
+    const user = await resetPassword(email, nextPassword);
     return ok({
       user: {
         id: user.id,

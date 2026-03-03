@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { createSession, signIn } from "@/lib/pseudo-db";
+import { createSession, signIn } from "@/lib/db";
 import { fail, ok, readJson } from "@/lib/api-route-utils";
 
 interface SignInBody {
@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
       return fail("Email and password are required.", 422);
     }
 
-    const user = signIn(email, password);
-    const session = createSession(user.id);
+    const user = await signIn(email, password);
+    const session = await createSession(user.id);
     return ok({
       user: {
         id: user.id,

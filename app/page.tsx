@@ -11,7 +11,7 @@ import {
   ShareNetwork,
   Star,
 } from "@phosphor-icons/react/dist/ssr";
-import { listProfiles } from "@/lib/site-data";
+import { listProfiles } from "@/lib/profile-data";
 import { use } from "react";
 
 export const metadata: Metadata = {

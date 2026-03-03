@@ -1,12 +1,25 @@
 import type { PublicProfileApi } from "@/lib/site-api";
 import { defaultProfileTemplateId } from "@/lib/profile-templates";
-import type { ProfileData } from "@/lib/site-data";
+import type { ProfileData } from "@/lib/profile-data";
 
 function formatResumeSize(fileSizeKb: number): string {
   return `${fileSizeKb} KB PDF`;
 }
 
+function formatDatePrefix(value: string | null | undefined): string | undefined {
+  if (typeof value !== "string" || value.length === 0) {
+    return undefined;
+  }
+  return value.slice(0, 10);
+}
+
 export function mapPublicApiProfileToProfileData(profile: PublicProfileApi): ProfileData {
+  const lastUpdated =
+    formatDatePrefix(profile.resume?.updatedAt) ??
+    formatDatePrefix(profile.publishedAt) ??
+    "Unknown";
+  const projects = Array.isArray(profile.projects) ? profile.projects : [];
+
   return {
     username: profile.slug,
     name: profile.name,
@@ -24,13 +37,13 @@ export function mapPublicApiProfileToProfileData(profile: PublicProfileApi): Pro
     resume: {
       url: profile.resume?.fileUrl ?? "#",
       fileSizeLabel: profile.resume ? formatResumeSize(profile.resume.fileSizeKb) : "No resume uploaded",
-      lastUpdated: profile.resume?.updatedAt.slice(0, 10) ?? profile.publishedAt.slice(0, 10),
+      lastUpdated,
       displayMode: profile.resumeBlockType,
       summary: profile.resume
         ? "Most recent resume upload from dashboard."
         : "No resume uploaded yet.",
     },
-    projects: profile.projects.map((project) => ({
+    projects: projects.map((project) => ({
       title: project.title,
       summary: project.summary,
       problem: project.highlights[0] ?? "Problem details coming soon.",

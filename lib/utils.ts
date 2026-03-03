@@ -1,3 +1,4 @@
+import type { AccentColor, PlanType, ResumeBlockType } from "@/lib/db-types";
 import type { ProfileTemplateId } from "@/lib/profile-templates";
 
 export type InternshipStatus =
@@ -5,8 +6,6 @@ export type InternshipStatus =
   | "Open to Fall 2026 co-op"
   | "Open to full-time 2027"
   | "Not actively seeking";
-
-export type PlanType = "free" | "pro";
 
 export interface ProjectDraft {
   id: string;
@@ -25,18 +24,18 @@ export interface ProfileDraft {
   university: string;
   gradYear: string;
   internshipStatus: InternshipStatus;
-  accentColor: "blue" | "purple" | "emerald" | "black";
+  accentColor: AccentColor;
   templateId: ProfileTemplateId;
   slug: string;
   plan: PlanType;
-  resumeBlockType: "with_preview" | "without_preview";
+  resumeBlockType: ResumeBlockType;
   resumeFileName: string;
   resumeFileSizeKb: number;
   resumeUpdatedAt: string;
   profileImageUrl: string;
   profileImageVisible: boolean;
-  bgImageUrl: string;          // background image URL (for fullscreen/scrollytelling/split/etc.)
-  bgImageOverlay: number;      // 0–100 overlay darkness percentage
+  bgImageUrl: string;
+  bgImageOverlay: number;
   skillsLanguagesInput: string;
   skillsFrameworksInput: string;
   skillsToolsInput: string;
@@ -123,4 +122,21 @@ export function parseSkills(value: string): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+export function nowIso(): string {
+  return new Date().toISOString();
+}
+
+export function toJson(value: unknown): string {
+  return JSON.stringify(value ?? null);
+}
+
+export function fromJson<T>(value: string | null | undefined): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
 }

@@ -8,10 +8,10 @@ import Link from "next/link";
 import {
   createDefaultDraft, createProjectDraft,
   parseSkills, slugifyName, type ProfileDraft,
-} from "@/lib/mvp-flow";
+} from "@/lib/utils";
 import { TemplatePicker } from "@/components/TemplatePicker";
 import { defaultProfileTemplateId } from "@/lib/profile-templates";
-import type { CheckoutPlan, DbProfile, DbProject, PlanType } from "@/lib/pseudo-db";
+import type { CheckoutPlan, DbProfile, DbProject, PlanType } from "@/lib/db";
 import {
   ApiClientError, createCheckoutSessionApi, createProfileApi, createProjectApi,
   deleteProfileApi, deleteProjectApi, deleteResumeApi, getMe, getPlans, getProfile,
@@ -408,6 +408,7 @@ export function DashboardEditor() {
       const bgRaw = draft.bgImageUrl.trim();
       const bgOverlay = Math.max(0, Math.min(100, Math.round(draft.bgImageOverlay)));
       const hasPendingBg = bgRaw.startsWith("data:image/");
+      const hasPendingProfileImage = draft.profileImageUrl.trim().startsWith("data:image/");
       const base = {
         slug: slugifyName(draft.slug), name: draft.fullName.trim(), headline: draft.headline.trim(),
         summary: draft.summary.trim(), university: draft.university.trim(), gradYear: draft.gradYear.trim(),
@@ -428,7 +429,11 @@ export function DashboardEditor() {
 
       let profileId = activeProfileId;
       if (!profileId) {
-        const created = await createProfileApi(token, base);
+        const created = await createProfileApi(token, {
+          ...base,
+          // Defer data-url profile image upload to PATCH so it happens exactly once.
+          profileImageUrl: hasPendingProfileImage ? "" : base.profileImageUrl,
+        });
         profileId = created.profile.id;
       }
       if (!profileId) throw new Error("Could not resolve profile ID.");

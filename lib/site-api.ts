@@ -4,10 +4,11 @@ import type {
   DbProfile,
   DbProfileSocials,
   DbProfileSkills,
+  DbPublicProfile,
   DbProject,
   PlanType,
   ResumeBlockType,
-} from "@/lib/pseudo-db";
+} from "@/lib/db-types";
 import type { ProfileTemplateId } from "@/lib/profile-templates";
 
 interface ApiEnvelope<T> {
@@ -329,39 +330,7 @@ export function processBillingWebhookApi(payload: {
   });
 }
 
-export interface PublicProfileApi {
-  slug: string;
-  name: string;
-  headline: string;
-  summary: string;
-  university: string;
-  gradYear: string;
-  internshipStatus: string;
-  accentColor: AccentColor;
-  templateId: ProfileTemplateId;
-  skills: DbProfileSkills;
-  resume: {
-    fileName: string;
-    fileUrl: string;
-    fileSizeKb: number;
-    updatedAt: string;
-  } | null;
-  profileImageUrl: string | null;
-  bgImageUrl: string | null;
-  bgImageOverlay: number;
-  projects: DbProject[];
-  contact: {
-    email: string | null;
-    socials: {
-      linkedin: string | null;
-      github: string | null;
-      twitter: string | null;
-      instagram: string | null;
-    };
-  };
-  resumeBlockType: ResumeBlockType;
-  publishedAt: string;
-}
+export type PublicProfileApi = DbPublicProfile;
 
 export function getPublicProfileApi(
   slug: string,

@@ -1,14 +1,15 @@
 import { NextRequest } from "next/server";
-import { getUserPlan } from "@/lib/pseudo-db";
+import { getUserPlan } from "@/lib/db";
 import { ok, requireAuth } from "@/lib/api-route-utils";
 
 export async function GET(request: NextRequest) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const auth = await requireAuth(request);
+  if (auth.response) {
+    return auth.response;
   }
 
-  const plan = getUserPlan(user.id);
+  const user = auth.user as any;
+  const plan = await getUserPlan(user.id);
   return ok({
     id: user.id,
     email: user.email,

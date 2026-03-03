@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserFromToken, type DbUser } from "@/lib/pseudo-db";
+import { getUserFromToken, type DbUser } from "@/lib/db";
 
 export function ok(data: unknown, status = 200): NextResponse {
   return NextResponse.json({ ok: true, data }, { status });
@@ -32,18 +32,18 @@ export function getBearerToken(request: NextRequest): string | null {
   return token;
 }
 
-export function requireAuth(request: NextRequest): {
+export async function requireAuth(request: NextRequest): Promise<{
   user: DbUser;
   response: null;
 } | {
   user: null;
   response: NextResponse;
-} {
+}> {
   const token = getBearerToken(request);
   if (!token) {
     return { user: null, response: fail("Missing bearer token.", 401) };
   }
-  const user = getUserFromToken(token);
+  const user = await getUserFromToken(token);
   if (!user) {
     return { user: null, response: fail("Invalid or expired token.", 401) };
   }

@@ -1,14 +1,26 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { DynamicFavicon } from "@/components/dynamic-favicon";
 import { ProfileShell } from "@/components/profile-shell";
 import { mapPublicApiProfileToProfileData } from "@/lib/public-profile-adapter";
 import type { PublicProfileApi } from "@/lib/site-api";
-import { getChildPageBySegments, getProfileByUsername } from "@/lib/site-data";
+import { getChildPageBySegments, getProfileByUsername } from "@/lib/profile-data";
 
 interface ChildPageProps {
   params: Promise<{ username: string; childpages: string[] }>;
   searchParams: Promise<{ view?: string }>;
+}
+
+function resolvePngFavicon(profileImageUrl: string | null | undefined): Metadata["icons"] | undefined {
+  if (!profileImageUrl) return undefined;
+  if (!/\.png(?:$|[?#])/i.test(profileImageUrl)) return undefined;
+  return { icon: profileImageUrl };
+}
+
+function resolvePngFaviconUrl(profileImageUrl: string | null | undefined): string {
+  if (!profileImageUrl) return "/favicon.ico";
+  return /\.png(?:$|[?#])/i.test(profileImageUrl) ? profileImageUrl : "/favicon.ico";
 }
 
 function getApiBaseUrl(hostHeader: string | null, protoHeader: string | null): string {
@@ -79,12 +91,14 @@ export async function generateMetadata({
   if (!childPage) {
     return {
       title: `${profile.name} | foliopage`,
+      icons: resolvePngFavicon(profile.profileImageUrl),
     };
   }
 
   return {
     title: `${childPage.title} | ${profile.name} | foliopage`,
     description: childPage.subtitle,
+    icons: resolvePngFavicon(profile.profileImageUrl),
   };
 }
 
@@ -106,12 +120,16 @@ export default async function ChildPage({ params, searchParams }: ChildPageProps
   }
 
   const profile = mapPublicApiProfileToProfileData(publicProfile);
+  const faviconHref = resolvePngFaviconUrl(publicProfile.profileImageUrl);
 
   return (
-    <ProfileShell
-      profile={profile}
-      childPage={childPage}
-      recruiterMode={recruiterMode}
-    />
+    <>
+      <DynamicFavicon href={faviconHref} />
+      <ProfileShell
+        profile={profile}
+        childPage={childPage}
+        recruiterMode={recruiterMode}
+      />
+    </>
   );
 }

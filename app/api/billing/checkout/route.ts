@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { createCheckoutSession, type CheckoutPlan } from "@/lib/pseudo-db";
+import { createCheckoutSession, type CheckoutPlan } from "@/lib/db";
 import { fail, ok, readJson, requireAuth } from "@/lib/api-route-utils";
 
 interface CheckoutBody {
@@ -7,9 +7,9 @@ interface CheckoutBody {
 }
 
 export async function POST(request: NextRequest) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const { user, response } = await requireAuth(request);
+  if (response || !user) {
+    return response ?? fail("Unauthorized.", 401);
   }
 
   try {
@@ -18,10 +18,9 @@ export async function POST(request: NextRequest) {
       return fail("plan must be pro_monthly or pro_annual.", 422);
     }
 
-    const checkout = createCheckoutSession(user.id, body.plan);
+    const checkout = await createCheckoutSession(user.id, body.plan);
     return ok(checkout, 201);
   } catch (error) {
     return fail((error as Error).message, 400);
   }
 }
-

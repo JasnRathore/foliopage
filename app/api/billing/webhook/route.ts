@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { upgradePlan } from "@/lib/pseudo-db";
+import { upgradePlan } from "@/lib/db";
 import { fail, ok, readJson } from "@/lib/api-route-utils";
 
 interface WebhookBody {
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.event === "payment_succeeded") {
-      const user = upgradePlan(body.userId, "pro");
+      const user = await upgradePlan(body.userId, "pro");
       return ok({
         processed: true,
         user: {

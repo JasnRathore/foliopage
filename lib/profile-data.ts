@@ -1,8 +1,12 @@
 import type { ProfileTemplateId } from "@/lib/profile-templates";
+import type {
+  AccentColor,
+  PlanType,
+  ResumeBlockType,
+} from "@/lib/db-types";
 
-export type AccentColor = "blue" | "purple" | "emerald" | "black";
-export type PlanType = "free" | "pro";
-export type ResumeDisplayMode = "with_preview" | "without_preview";
+export type { AccentColor, PlanType };
+export type ResumeDisplayMode = ResumeBlockType;
 
 export interface ResumeData {
   url: string;
@@ -123,4 +127,45 @@ export function getChildPageBySegments(
   return profile.childPages.find(
     (childPage) => childPage.slugSegments.join("/").toLowerCase() === target,
   );
+}
+
+// Minimal demo helpers used by pages during SSR. These return lightweight
+// static data for the demo username(s). The app primarily fetches live data
+// from the API, so these helpers only provide static child page definitions
+// and a small placeholder profile for server-rendered routes.
+
+export function listProfiles(): ProfileData[] {
+  // Return an empty list by default. The dashboard and API use the dynamic
+  // endpoints; this is only for static/demo rendering on the marketing pages.
+  return [];
+}
+
+export function getProfileByUsername(username: string): ProfileData | undefined {
+  const key = (username ?? "").trim().toLowerCase();
+  if (key === "jasn") {
+    return {
+      username: "jasn",
+      name: "Jasn Rathore",
+      headline: "Builder & product-focused engineer",
+      university: "",
+      gradYear: "",
+      location: "",
+      internshipStatus: "",
+      accentColor: "blue",
+      templateId: undefined,
+      profileImageUrl: undefined,
+      bgImageUrl: undefined,
+      bgImageOverlay: 50,
+      plan: "free",
+      summary: "",
+      resume: { url: "", fileSizeLabel: "", lastUpdated: "" },
+      projects: [],
+      skills: { languages: [], frameworks: [], tools: [], other: [] },
+      experiences: [],
+      contact: {},
+      childPages: [],
+    };
+  }
+
+  return undefined;
 }

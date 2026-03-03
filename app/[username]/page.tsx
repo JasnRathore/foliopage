@@ -60,24 +60,6 @@ async function fetchPublicProfile(
   return payload.data.profile;
 }
 
-export async function generateMetadata({
-  params,
-}: ProfilePageProps): Promise<Metadata> {
-  const { username } = await params;
-  const profile = await fetchPublicProfile(username, false);
-
-  if (!profile) {
-    return {
-      title: "Profile Not Found | foliopage",
-    };
-  }
-
-  return {
-    title: `${profile.name} | foliopage`,
-    description: `${profile.headline} - ${profile.university}`,
-  };
-}
-
 export default async function ProfilePage({
   params,
   searchParams,
@@ -93,5 +75,9 @@ export default async function ProfilePage({
 
   const profile = mapPublicApiProfileToProfileData(publicProfile);
 
-  return <ProfileShell profile={profile} recruiterMode={recruiterMode} />;
+  return (
+    <>
+      <ProfileShell profile={profile} recruiterMode={recruiterMode} />
+    </>
+  );
 }

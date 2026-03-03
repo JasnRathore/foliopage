@@ -5,7 +5,8 @@ import {
   listProfilesForUser,
   type AccentColor,
   type ResumeBlockType,
-} from "@/lib/pseudo-db";
+} from "@/lib/db";
+import { resolveProfileImageUrl } from "@/lib/github";
 import { fail, ok, readJson, requireAuth } from "@/lib/api-route-utils";
 
 interface CreateProfileBody {
@@ -25,19 +26,19 @@ interface CreateProfileBody {
 }
 
 export async function GET(request: NextRequest) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const { user, response } = await requireAuth(request);
+  if (response || !user) {
+    return response ?? fail("Unauthorized.", 401);
   }
 
-  const profiles = listProfilesForUser(user.id);
+  const profiles = await listProfilesForUser(user.id);
   return ok({ profiles });
 }
 
 export async function POST(request: NextRequest) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const { user, response } = await requireAuth(request);
+  if (response || !user) {
+    return response ?? fail("Unauthorized.", 401);
   }
 
   try {
@@ -56,7 +57,14 @@ export async function POST(request: NextRequest) {
       return fail("Missing required profile fields.", 422);
     }
 
-    const profile = createProfile(user.id, {
+    const profileImageUrl =
+      body.profileImageUrl !== undefined
+        ? await resolveProfileImageUrl(body.profileImageUrl, {
+            username: body.slug?.trim(),
+          })
+        : undefined;
+
+    const profile = await createProfile(user.id, {
       slug: body.slug!.trim(),
       name: body.name!.trim(),
       headline: body.headline!.trim(),
@@ -66,7 +74,7 @@ export async function POST(request: NextRequest) {
       accentColor: body.accentColor!,
       templateId: body.templateId,
       resumeBlockType: body.resumeBlockType,
-      profileImageUrl: body.profileImageUrl,
+      profileImageUrl,
       profileImageVisible: body.profileImageVisible,
       bgImageUrl: body.bgImageUrl,
       bgImageOverlay: body.bgImageOverlay,

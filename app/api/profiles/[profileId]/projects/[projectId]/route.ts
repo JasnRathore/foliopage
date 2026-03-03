@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { deleteProject, updateProject } from "@/lib/pseudo-db";
+import { deleteProject, updateProject } from "@/lib/db";
 import { fail, ok, readJson, requireAuth } from "@/lib/api-route-utils";
 
 interface UpdateProjectBody {
@@ -16,10 +16,11 @@ interface RouteContext {
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const auth = await requireAuth(request);
+  if (auth.response) {
+    return auth.response;
   }
+  const user = auth.user as any;
 
   try {
     const { profileId, projectId } = await context.params;
@@ -29,7 +30,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ? body.techStack.split(",").map((item) => item.trim())
         : body.techStack;
 
-    const project = updateProject(profileId, projectId, user.id, {
+    const project = await updateProject(profileId, projectId, user.id, {
       ...body,
       techStack,
     });
@@ -41,14 +42,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const auth = await requireAuth(request);
+  if (auth.response) {
+    return auth.response;
   }
+  const user = auth.user as any;
 
   try {
     const { profileId, projectId } = await context.params;
-    const result = deleteProject(profileId, projectId, user.id);
+    const result = await deleteProject(profileId, projectId, user.id);
     return ok(result);
   } catch (error) {
     return fail((error as Error).message, 404);

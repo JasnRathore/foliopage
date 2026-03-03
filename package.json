@@ -9,8 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.0",
+    "@octokit/request-error": "^7.1.0",
+    "@octokit/rest": "^22.0.1",
+    "@octokit/types": "^16.0.0",
     "@phosphor-icons/react": "^2.1.10",
     "next": "16.1.6",
+    "octokit": "^5.0.5",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },

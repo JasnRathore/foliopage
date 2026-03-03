@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { createProject, listProjects } from "@/lib/pseudo-db";
+import { createProject, listProjects } from "@/lib/db";
 import { fail, ok, readJson, requireAuth } from "@/lib/api-route-utils";
 
 interface CreateProjectBody {
@@ -16,14 +16,15 @@ interface RouteContext {
 }
 
 export async function GET(request: NextRequest, context: RouteContext) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const auth = await requireAuth(request);
+  if (auth.response) {
+    return auth.response;
   }
+  const user = auth.user as any;
 
   try {
     const { profileId } = await context.params;
-    const projects = listProjects(profileId, user.id);
+    const projects = await listProjects(profileId, user.id);
     return ok({ projects });
   } catch (error) {
     return fail((error as Error).message, 404);
@@ -31,10 +32,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  const { user, response } = requireAuth(request);
-  if (response) {
-    return response;
+  const auth = await requireAuth(request);
+  if (auth.response) {
+    return auth.response;
   }
+  const user = auth.user as any;
 
   try {
     const { profileId } = await context.params;
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         ? body.techStack.split(",").map((item) => item.trim())
         : body.techStack ?? [];
 
-    const project = createProject(profileId, user.id, {
+    const project = await createProject(profileId, user.id, {
       title: body.title.trim(),
       summary: body.summary.trim(),
       highlights: body.highlights ?? [],
