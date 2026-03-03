@@ -21,6 +21,7 @@ export interface ProjectDraft {
 export interface ProfileDraft {
   fullName: string;
   headline: string;
+  summary: string;
   university: string;
   gradYear: string;
   internshipStatus: InternshipStatus;
@@ -32,6 +33,10 @@ export interface ProfileDraft {
   resumeFileName: string;
   resumeFileSizeKb: number;
   resumeUpdatedAt: string;
+  profileImageUrl: string;
+  profileImageVisible: boolean;
+  bgImageUrl: string;          // background image URL (for fullscreen/scrollytelling/split/etc.)
+  bgImageOverlay: number;      // 0–100 overlay darkness percentage
   skillsLanguagesInput: string;
   skillsFrameworksInput: string;
   skillsToolsInput: string;
@@ -78,6 +83,7 @@ export function createDefaultDraft(): ProfileDraft {
   return {
     fullName: "",
     headline: "",
+    summary: "",
     university: "",
     gradYear: "2027",
     internshipStatus: "Seeking Summer 2026 internship",
@@ -89,6 +95,10 @@ export function createDefaultDraft(): ProfileDraft {
     resumeFileName: "",
     resumeFileSizeKb: 0,
     resumeUpdatedAt: now,
+    profileImageUrl: "",
+    profileImageVisible: false,
+    bgImageUrl: "",
+    bgImageOverlay: 50,
     skillsLanguagesInput: "",
     skillsFrameworksInput: "",
     skillsToolsInput: "",

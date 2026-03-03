@@ -20,6 +20,10 @@ interface UpdateProfileBody {
   accentColor?: AccentColor;
   templateId?: ProfileTemplateId;
   resumeBlockType?: ResumeBlockType;
+  profileImageUrl?: string;
+  profileImageVisible?: boolean;
+  bgImageUrl?: string;
+  bgImageOverlay?: number;
   contactEmail?: string;
   emailVisible?: boolean;
   socials?: Partial<{

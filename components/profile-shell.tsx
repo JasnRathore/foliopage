@@ -99,6 +99,30 @@ function ContactIcon({ type }: { type: string }) {
 
 // ─── Shared section blocks ────────────────────────────────────────────────────
 
+function ProfileImage({
+  profile,
+  className,
+}: {
+  profile: ProfileData;
+  className?: string;
+}) {
+  if (!profile.profileImageUrl) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={profile.profileImageUrl}
+      alt={`${profile.name} profile photo`}
+      className={[
+        "h-20 w-20 rounded-2xl border border-black/15 bg-black/5 object-cover",
+        className ?? "",
+      ].join(" ")}
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+    />
+  );
+}
+
 function HeroPills({
   profile,
   t,
@@ -135,7 +159,9 @@ function HeroText({
 }) {
   return (
     <>
-      <h1 className={t.heroName}>{profile.name}</h1>
+      <h1 className={t.heroName} style={{ fontFamily: t.fontDisplay || undefined }}>
+        {profile.name}
+      </h1>
       <p className={t.heroHeadline}>{profile.headline}</p>
       <p className={t.heroBio}>{profile.summary}</p>
     </>
@@ -479,6 +505,7 @@ function StackLayout({
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section className={t.stackHeroCard}>
+        <ProfileImage profile={profile} className="mb-4 h-24 w-24 rounded-3xl" />
         {/* Pills: wrap on mobile, row on desktop */}
         <div className="flex flex-wrap gap-2">
           <span className={t.pill}>
@@ -504,12 +531,6 @@ function StackLayout({
 
         {/* CTAs — inline row, never stacked */}
         <div className="mt-5 flex flex-wrap gap-3">
-          {hasResumeUrl && (
-            <a href={profile.resume.url} download className={t.ctaPrimary}>
-              <FilePdf size={16} aria-hidden />
-              Download résumé
-            </a>
-          )}
           {profile.contact.email && (
             <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
               <EnvelopeSimple size={16} aria-hidden />
@@ -697,9 +718,33 @@ function StackLayout({
 }
 
 /**
- * SIDEBAR — sticky left sidebar + scrollable right content.
- * Mobile (<md): collapses to single-column stack.
- * Used by: Dusk, Forest
+ * SIDEBAR — Linear-inspired app-nav layout.
+ *
+ * LEFT (sticky, 240–260px wide):
+ *   ┌─────────────────────────────┐
+ *   │ ● Avatar  Name  ·  Status  │  ← identity header row
+ *   │──────────────────────────── │
+ *   │ IDENTITY                    │  ← section group label
+ *   │   🎓 University · Year      │  ← compact meta rows
+ *   │   📍 Location               │
+ *   │──────────────────────────── │
+ *   │ CONNECT                     │
+ *   │   ✉  email@...              │  ← nav rows: icon + label + hover bg
+ *   │   ↗  LinkedIn               │
+ *   │   ↗  GitHub                 │
+ *   │──────────────────────────── │
+ *   │ RÉSUMÉ                      │
+ *   │ [subtle inset resume card]  │
+ *   │──────────────────────────── │
+ *   │ [foliopage footer]          │  ← pinned to bottom
+ *   └─────────────────────────────┘
+ *
+ * RIGHT (scrollable):
+ *   Section heading → Projects (cards with index badge)
+ *   Section heading → Skills (grouped chip cloud)
+ *   Section heading → Experience (left-spine timeline)
+ *
+ * Mobile: stacked header block → full-width content
  */
 function SidebarLayout({
   profile,
@@ -707,92 +752,327 @@ function SidebarLayout({
   childPage,
   t,
   hasResumeUrl,
-  resumeMode,
-  resumePreviewUrl,
   contactLinks,
 }: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
   return (
     <div className={t.sidebarOuter}>
-      {/* ── LEFT (sticky sidebar on md+) ── */}
-      <aside className={t.sidebarLeft}>
-        <HeroPills profile={profile} t={t} />
-        <HeroText profile={profile} t={t} />
-        <HeroCTAs profile={profile} t={t} hasResumeUrl={hasResumeUrl} />
 
-        {/* Connect links live in sidebar on desktop */}
+      {/* ══════════════════════════════════════════════════════════
+          LEFT — sticky app-nav sidebar
+          ══════════════════════════════════════════════════════════ */}
+      <aside className={t.sidebarLeft}>
+
+        {/* ── Identity header row ──────────────────────────────── */}
+        <div className="flex items-center gap-2.5 px-2 py-2 mb-1">
+          {profile.profileImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.profileImageUrl}
+              alt=""
+              aria-hidden
+              className={[
+                "h-[22px] w-[22px] shrink-0 rounded-full object-cover",
+                t.sidebarImageRing,
+              ].join(" ")}
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-current opacity-10 text-[10px]">
+              {profile.name.charAt(0)}
+            </span>
+          )}
+          <span
+            className="flex-1 truncate text-[13px] font-semibold leading-none"
+            style={{ fontFamily: t.fontDisplay || undefined }}
+          >
+            {profile.name}
+          </span>
+        </div>
+
+        {/* Accent status pill — compact */}
+        <div className="px-2 mb-2">
+          <span className={`${t.pillAccent} text-[10px] px-2 py-0.5 gap-1`}>
+            <Sparkle size={9} aria-hidden />
+            {profile.internshipStatus}
+          </span>
+        </div>
+
+        <div className={t.sidebarDivider} />
+
+        {/* ── IDENTITY group ───────────────────────────────────── */}
+        <p className={t.sidebarNavSection}>Identity</p>
+
+        <div className="flex flex-col">
+          <div className={`${t.sidebarNavItem} ${t.sidebarNavItemHover}`}>
+            <GraduationCap size={14} className={t.sidebarNavIcon} aria-hidden />
+            <span className={t.sidebarMeta}>
+              {profile.university} · {profile.gradYear}
+            </span>
+          </div>
+          {profile.location && (
+            <div className={`${t.sidebarNavItem} ${t.sidebarNavItemHover}`}>
+              <MapPin size={14} className={t.sidebarNavIcon} aria-hidden />
+              <span className={t.sidebarMeta}>{profile.location}</span>
+            </div>
+          )}
+        </div>
+
+        {/* ── CONNECT group ────────────────────────────────────── */}
         {contactLinks.length > 0 && (
-          <div className="mt-6">
-            <p className={`${t.sectionTitle} mb-3`}>
-              <LinkSimple size={13} aria-hidden />
-              Connect
-            </p>
-            <div className="flex flex-col gap-2">
+          <>
+            <p className={t.sidebarNavSection}>Connect</p>
+            <nav className="flex flex-col" aria-label="Contact links">
               {contactLinks.map((entry) => (
                 <a
                   key={`${entry.type}-${entry.href}`}
                   href={entry.href}
                   target={entry.type !== "email" ? "_blank" : undefined}
                   rel="noopener noreferrer"
-                  className={t.linkRow}
+                  className={`${t.sidebarNavItem} ${t.sidebarNavItemHover}`}
                 >
-                  <span className={t.linkRowIcon}>
+                  <span className={t.sidebarNavIcon}>
                     <ContactIcon type={entry.type} />
                   </span>
-                  <span className="flex-1 text-sm font-medium">{entry.label}</span>
-                  <ArrowUpRight size={12} className="opacity-30" aria-hidden />
+                  <span className="flex-1 truncate text-[13px]">
+                    {entry.type === "email"
+                      ? entry.label
+                      : entry.type.charAt(0).toUpperCase() + entry.type.slice(1)}
+                  </span>
+                  <ArrowUpRight
+                    size={10}
+                    className="shrink-0 opacity-0 transition-opacity group-hover:opacity-40"
+                    aria-hidden
+                  />
                 </a>
               ))}
-            </div>
-          </div>
+            </nav>
+          </>
         )}
 
-        {/* Résumé meta in sidebar */}
-        <div className="mt-6">
-          <div className={`${t.divider} !mt-0 mb-4`} />
-          <div className="flex flex-wrap items-center justify-between gap-1">
-            <p className={t.sectionTitle}>
-              <FilePdf size={13} aria-hidden />
-              Résumé
-            </p>
-            <span className="text-[10px] opacity-35 tabular-nums">
+        {/* ── RÉSUMÉ group ─────────────────────────────────────── */}
+        <p className={t.sidebarNavSection}>Résumé</p>
+        <div className={`${t.sidebarResumeCard} mx-1 mb-1`}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-medium opacity-60">
+              {profile.resume.fileSizeLabel || "PDF"}
+            </span>
+            <span className="text-[10px] opacity-30 tabular-nums">
               {resumeDateLabel(profile.resume.lastUpdated)}
             </span>
           </div>
-          {profile.resume.fileSizeLabel && (
-            <p className="mt-0.5 text-[11px] opacity-35">{profile.resume.fileSizeLabel}</p>
-          )}
           {hasResumeUrl ? (
-            <a href={profile.resume.url} download className={`${t.ctaOutline} mt-3 w-full`}>
-              <FilePdf size={15} aria-hidden />
+            <a
+              href={profile.resume.url}
+              download
+              className={`${t.ctaPrimary} w-full justify-center py-1.5 text-[11px]`}
+            >
+              <FilePdf size={12} aria-hidden />
               Download PDF
             </a>
           ) : (
-            <p className="mt-2 text-xs opacity-40">Available on request.</p>
+            <p className="text-[11px] opacity-35 italic">Available on request.</p>
           )}
         </div>
 
+        {/* ── Bio blurb (collapsed, subtle) ───────────────────── */}
+        <div className={t.sidebarDivider} />
+        <p className={`${t.heroBio} px-2 py-3 text-[11px] leading-relaxed`}>
+          {profile.summary}
+        </p>
+
+        {/* ── Spacer + footer ──────────────────────────────────── */}
         {profile.plan === "free" && !recruiterMode && (
-          <p className={`${t.footer} mt-10 text-left`}>
+          <p className={`${t.footer} mt-auto px-2 pb-1 text-left text-[10px]`}>
             Built with{" "}
-            <Link href="/" className="underline underline-offset-2 opacity-60 hover:opacity-100">
+            <Link href="/" className="underline underline-offset-2 opacity-50 hover:opacity-100">
               foliopage
             </Link>
           </p>
         )}
       </aside>
 
-      {/* ── RIGHT (scrollable content) ── */}
+      {/* ══════════════════════════════════════════════════════════
+          RIGHT — scrollable content pane
+          ══════════════════════════════════════════════════════════ */}
       <main className={t.sidebarRight}>
-        <ProjectsSection profile={profile} recruiterMode={recruiterMode} t={t} />
 
-        {childPage && <ChildPageSection profile={profile} childPage={childPage} t={t} />}
+        {/* ── PROJECTS ─────────────────────────────────────────── */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className={t.sectionTitle}>
+              <Briefcase size={13} aria-hidden />
+              Projects
+            </h2>
+            <span className="text-[10px] opacity-30 tabular-nums">
+              {profile.projects.length} total
+            </span>
+          </div>
 
-        {!recruiterMode && <SkillsSection profile={profile} t={t} />}
-        {!recruiterMode && <ExperienceSection profile={profile} t={t} />}
+          <div className="flex flex-col gap-3">
+            {profile.projects.map((project, idx) => (
+              <article key={project.title} className={t.sidebarProjectCard}>
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={t.sidebarProjectIndex}>
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <h3
+                      className={`${t.sidebarProjectTitle} text-[15px] truncate`}
+                      style={{ fontFamily: t.fontDisplay || undefined }}
+                    >
+                      {project.title}
+                    </h3>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {project.demoUrl && (
+                      <a
+                        href={project.demoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={t.iconBtn}
+                        aria-label="Live demo"
+                      >
+                        <ArrowUpRight size={12} aria-hidden />
+                      </a>
+                    )}
+                    {project.githubUrl && (
+                      <a
+                        href={project.githubUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={t.iconBtn}
+                        aria-label="GitHub"
+                      >
+                        <GithubLogo size={12} aria-hidden />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-sm opacity-55 mb-3">{project.summary}</p>
+
+                {!recruiterMode && (
+                  <div className="flex flex-col gap-1.5 text-[13px] mb-3">
+                    {[
+                      { label: "Problem", value: project.problem },
+                      { label: "Solution", value: project.solution },
+                      { label: "Impact", value: project.impact },
+                    ].map(({ label, value }) => (
+                      <p key={label} className="leading-relaxed">
+                        <span className="font-semibold opacity-75">{label} — </span>
+                        <span className="opacity-50">{value}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-1.5">
+                  {project.techStack.map((tech) => (
+                    <span key={tech} className={t.chip}>{tech}</span>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {childPage && (
+          <ChildPageSection profile={profile} childPage={childPage} t={t} />
+        )}
+
+        {/* ── SKILLS ───────────────────────────────────────────── */}
+        {!recruiterMode && skillGroups.length > 0 && (
+          <section className="mb-8">
+            <h2 className={`${t.sectionTitle} mb-5`}>
+              <Notepad size={13} aria-hidden />
+              Skills
+            </h2>
+            <div className="flex flex-col gap-5">
+              {skillGroups.map((group) => (
+                <div key={group.label} className={t.sidebarSkillGroup}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-35 mb-2">
+                    {group.label}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.values.map((value) => (
+                      <span key={value} className={t.chip}>{value}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── EXPERIENCE ───────────────────────────────────────── */}
+        {!recruiterMode && profile.experiences.length > 0 && (
+          <section className="mb-8">
+            <h2 className={`${t.sectionTitle} mb-5`}>
+              <UserCircle size={13} aria-hidden />
+              Experience
+            </h2>
+            <div className="flex flex-col gap-6">
+              {profile.experiences.map((exp) => (
+                <article
+                  key={`${exp.role}-${exp.org}`}
+                  className={t.sidebarExpItem}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 mb-0.5">
+                    <p className={t.sidebarExpRole}>{exp.role}</p>
+                    <span className="text-[10px] opacity-30 tabular-nums shrink-0">
+                      {exp.period}
+                    </span>
+                  </div>
+                  <p className={t.sidebarExpOrg}>{exp.org}</p>
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {exp.bullets.map((bullet) => (
+                      <li
+                        key={bullet}
+                        className={`flex gap-2 ${t.sidebarExpBullet}`}
+                      >
+                        <span
+                          aria-hidden
+                          className="mt-[4px] shrink-0 text-[8px] opacity-40"
+                        >
+                          ▸
+                        </span>
+                        {bullet}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Mobile footer */}
+        {profile.plan === "free" && !recruiterMode && (
+          <footer className={`${t.footer} mt-8 md:hidden`}>
+            Built with{" "}
+            <Link
+              href="/"
+              className="underline underline-offset-2 opacity-60 hover:opacity-100"
+            >
+              foliopage
+            </Link>
+          </footer>
+        )}
       </main>
     </div>
   );
 }
+
 
 /**
  * MAGAZINE — full-width hero banner + responsive bento grid below.
@@ -816,6 +1096,7 @@ function MagazineLayout({
       <header className={t.magazineHeroBanner}>
         {/* Left: name + meta */}
         <div>
+          <ProfileImage profile={profile} className="mb-4 h-24 w-24 rounded-3xl" />
           <div className="flex flex-wrap gap-2">
             <HeroPills profile={profile} t={t} />
           </div>
@@ -823,12 +1104,6 @@ function MagazineLayout({
         </div>
         {/* Right: CTAs (show as a separate column on lg+) */}
         <div className="mt-6 flex flex-wrap gap-3 lg:mt-0 lg:flex-col lg:items-end lg:gap-2">
-          {hasResumeUrl && (
-            <a href={profile.resume.url} download className={t.ctaPrimary}>
-              <FilePdf size={16} aria-hidden />
-              Download résumé
-            </a>
-          )}
           {profile.contact.email && (
             <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
               <EnvelopeSimple size={16} aria-hidden />
@@ -911,6 +1186,8 @@ interface RenderProps {
   resumeMode: ResumeDisplayMode;
   resumePreviewUrl: string;
   contactLinks: ContactEntry[];
+  bgImageUrl?: string;         // optional background image for fullscreen/scrollytelling/split
+  bgImageOverlay?: number;     // 0–100 overlay darkness
 }
 
 // ─── Root shell ───────────────────────────────────────────────────────────────
@@ -933,17 +1210,2218 @@ export function ProfileShell({ profile, recruiterMode, childPage }: ProfileShell
     resumeMode,
     resumePreviewUrl,
     contactLinks,
+    bgImageUrl: profile.bgImageUrl,
+    bgImageOverlay: profile.bgImageOverlay ?? 50,
   };
 
   return (
-    <div className={t.page}>
-      {template.layout === "sidebar" ? (
-        <SidebarLayout {...renderProps} />
-      ) : template.layout === "magazine" ? (
-        <MagazineLayout {...renderProps} />
-      ) : (
-        <StackLayout {...renderProps} />
+    <>
+      {/* ── Font + scrollbar injection ─────────────────────────────────── */}
+      {(t.fontImport || t.scrollbarCss) && (
+        <style
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{
+            __html: [
+              t.fontImport ? `@import url('${t.fontImport}');` : "",
+              t.scrollbarCss ?? "",
+            ].filter(Boolean).join("\n"),
+          }}
+        />
       )}
+
+      {/* ── Page shell with font-family applied ────────────────────────── */}
+      <div
+        className={t.page}
+        style={{ fontFamily: t.fontBody || undefined }}
+      >
+        {template.layout === "sidebar" ? (
+          <SidebarLayout {...renderProps} />
+        ) : template.layout === "magazine" ? (
+          <MagazineLayout {...renderProps} />
+        ) : template.layout === "bento" ? (
+          <BentoLayout {...renderProps} />
+        ) : template.layout === "split" ? (
+          <SplitLayout {...renderProps} />
+        ) : template.layout === "scrollytelling" ? (
+          <ScrollytellingLayout {...renderProps} />
+        ) : template.layout === "modular" ? (
+          <ModularGridLayout {...renderProps} />
+        ) : template.layout === "fullscreen" ? (
+          <FullscreenLayout {...renderProps} />
+        ) : template.layout === "zpattern" ? (
+          <ZPatternLayout {...renderProps} />
+        ) : template.layout === "fpattern" ? (
+          <FPatternLayout {...renderProps} />
+        ) : profile.templateId === "manuscript" ? (
+          <ManuscriptLayout {...renderProps} />
+        ) : profile.templateId === "verdict" ? (
+          <VerdictLayout {...renderProps} />
+        ) : (
+          <StackLayout {...renderProps} />
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── BENTO layout ─────────────────────────────────────────────────────────────
+//
+// Swiss-grid inspired freeform tile layout.
+// Mobile: single-column stack with 4px black borders between tiles.
+// lg+:    asymmetric 3-column CSS grid.
+//
+//   ┌─────────────────────────────────┐
+//   │         HERO  (3 cols)          │
+//   ├──────────────────┬──────────────┤
+//   │ PROJECTS (2 col) │ CONNECT      │
+//   ├──────────────────┤ (1 col,      │
+//   │ RESUME   (2 col) │  2 row span) │
+//   ├────────┬─────────┴──────────────┤
+//   │ SKILLS │ EXPERIENCE  (2 col)    │
+//   └────────┴────────────────────────┘
+//
+// Each tile gets its background/padding from the template's bento* tokens,
+// so different themes can skin the layout differently without touching this file.
+
+function BentoLayout({
+  profile,
+  recruiterMode,
+  childPage,
+  t,
+  hasResumeUrl,
+  resumeMode,
+  resumePreviewUrl,
+  contactLinks,
+}: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
+  return (
+    <div className={t.bentoMain}>
+      <div className={t.bentoGrid}>
+
+        {/* ── HERO TILE ───────────────────────────────────────────────── */}
+        <header className={t.bentoHero} style={{ fontFamily: t.fontDisplay }}>
+          <ProfileImage profile={profile} className="mb-5 h-28 w-28 rounded-3xl border-2 border-black" />
+          {/* Pills row */}
+          <div className="flex flex-wrap gap-2">
+            <span className={t.pill}>
+              <GraduationCap size={12} aria-hidden />
+              {profile.university} · {profile.gradYear}
+            </span>
+            {profile.location && (
+              <span className={t.pill}>
+                <MapPin size={12} aria-hidden />
+                {profile.location}
+              </span>
+            )}
+            <span className={t.pillAccent}>
+              <Sparkle size={12} aria-hidden />
+              {profile.internshipStatus}
+            </span>
+          </div>
+
+          {/* Name — massive display type */}
+          <h1 className={t.heroName}>{profile.name}</h1>
+          <p className={t.heroHeadline}>{profile.headline}</p>
+          <p className={t.heroBio}>{profile.summary}</p>
+
+          {/* CTAs */}
+          <div className="mt-6 flex flex-wrap gap-3">
+            {profile.contact.email && (
+              <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
+                <EnvelopeSimple size={16} aria-hidden />
+                Get in touch
+              </a>
+            )}
+          </div>
+        </header>
+
+        {/* ── PROJECTS TILE ───────────────────────────────────────────── */}
+        <section className={t.bentoProjects}>
+          <h2 className={t.sectionTitle}>
+            <Briefcase size={14} aria-hidden />
+            Projects
+          </h2>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {profile.projects.map((project) => (
+              <article
+                key={project.title}
+                className={recruiterMode ? t.projectCardAlt : t.projectCard}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-base font-bold leading-tight">{project.title}</h3>
+                  <div className="flex shrink-0 gap-1">
+                    {project.demoUrl && (
+                      <a href={project.demoUrl} target="_blank" rel="noopener noreferrer"
+                        className={t.iconBtn} aria-label="Live demo">
+                        <ArrowUpRight size={13} aria-hidden />
+                      </a>
+                    )}
+                    {project.githubUrl && (
+                      <a href={project.githubUrl} target="_blank" rel="noopener noreferrer"
+                        className={t.iconBtn} aria-label="GitHub">
+                        <GithubLogo size={13} aria-hidden />
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <p className="mt-1.5 text-sm opacity-70">{project.summary}</p>
+                <div className="mt-3 grid gap-1 text-sm">
+                  <p><span className="font-bold opacity-90">Problem — </span><span className="opacity-65">{project.problem}</span></p>
+                  <p><span className="font-bold opacity-90">Solution — </span><span className="opacity-65">{project.solution}</span></p>
+                  <p><span className="font-bold opacity-90">Impact — </span><span className="opacity-65">{project.impact}</span></p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {project.techStack.map((tech) => (
+                    <span key={tech} className={t.chip}>{tech}</span>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {/* ── CONNECT TILE (spans 2 rows on lg+) ──────────────────────── */}
+        <section className={t.bentoConnect}>
+          <h2 className={t.sectionTitle}>
+            <LinkSimple size={14} aria-hidden />
+            Connect
+          </h2>
+          <div className="mt-4 flex flex-col">
+            {contactLinks.map((entry) => (
+              <a
+                key={`${entry.type}-${entry.href}`}
+                href={entry.href}
+                target={entry.type !== "email" ? "_blank" : undefined}
+                rel="noopener noreferrer"
+                className={t.linkRow}
+              >
+                <span className={t.linkRowIcon}>
+                  <ContactIcon type={entry.type} />
+                </span>
+                <span className="flex-1 truncate text-sm font-semibold">{entry.label}</span>
+                <ArrowUpRight size={12} className="shrink-0 opacity-40" aria-hidden />
+              </a>
+            ))}
+          </div>
+
+          {/* Résumé meta tucked at bottom of connect tile */}
+          <div className="mt-auto pt-8">
+            <div className={t.divider} />
+            <div className="flex items-center justify-between gap-2 pt-4">
+              <p className={t.sectionTitle}>
+                <FilePdf size={13} aria-hidden />
+                Résumé
+              </p>
+              <span className="text-[10px] opacity-40 tabular-nums">
+                {resumeDateLabel(profile.resume.lastUpdated)}
+              </span>
+            </div>
+            {!hasResumeUrl && (
+              <p className="mt-2 text-[11px] opacity-40 italic">Available on request.</p>
+            )}
+          </div>
+        </section>
+
+        {/* ── RESUME TILE ─────────────────────────────────────────────── */}
+        <section className={t.bentoResume}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className={t.sectionTitle}>
+              <FilePdf size={14} aria-hidden />
+              Résumé
+            </h2>
+            <span className="inline-flex items-center gap-1 text-[11px] opacity-40 tabular-nums">
+              <ClockCounterClockwise size={11} aria-hidden />
+              {resumeDateLabel(profile.resume.lastUpdated)}
+            </span>
+          </div>
+          {profile.resume.fileSizeLabel && (
+            <p className="mt-0.5 text-[11px] opacity-40">{profile.resume.fileSizeLabel}</p>
+          )}
+          {resumeMode === "with_preview" && (
+            <div className="mt-4 overflow-hidden border-4 border-black">
+              <iframe
+                src={resumePreviewUrl}
+                title={`${profile.name} résumé`}
+                className="h-[380px] w-full border-0 bg-white"
+              />
+            </div>
+          )}
+          {hasResumeUrl ? (
+            <a href={profile.resume.url} download className={`${t.ctaPrimary} mt-4`}>
+              <FilePdf size={16} aria-hidden />
+              Download PDF
+            </a>
+          ) : (
+            <p className="mt-4 text-sm opacity-50">Available on request.</p>
+          )}
+          {childPage && <ChildPageSection profile={profile} childPage={childPage} t={t} />}
+        </section>
+
+        {/* ── SKILLS TILE ─────────────────────────────────────────────── */}
+        {!recruiterMode && skillGroups.length > 0 && (
+          <section className={t.bentoSkills}>
+            <h2 className={t.sectionTitle}>
+              <Notepad size={14} aria-hidden />
+              Skills
+            </h2>
+            <div className="mt-4 flex flex-col gap-4">
+              {skillGroups.map((group) => (
+                <div key={group.label}>
+                  <h3 className="mb-2 text-[10px] font-black uppercase tracking-widest opacity-40">
+                    {group.label}
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.values.map((value) => (
+                      <span key={value} className={t.chip}>{value}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── EXPERIENCE TILE ─────────────────────────────────────────── */}
+        {!recruiterMode && profile.experiences.length > 0 && (
+          <section className={t.bentoExperience}>
+            <h2 className={t.sectionTitle}>
+              <UserCircle size={14} aria-hidden />
+              Experience
+            </h2>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {profile.experiences.map((exp) => (
+                <article key={`${exp.role}-${exp.org}`} className="border-t-4 border-black pt-4">
+                  <div className="flex flex-wrap items-start justify-between gap-1">
+                    <p className="font-black leading-tight">{exp.role}</p>
+                    <p className="text-[11px] opacity-40 tabular-nums">{exp.period}</p>
+                  </div>
+                  <p className="mt-0.5 text-sm font-semibold opacity-55">{exp.org}</p>
+                  <ul className="mt-2.5 space-y-1 text-sm">
+                    {exp.bullets.map((bullet) => (
+                      <li key={bullet} className="flex gap-2 opacity-60">
+                        <span aria-hidden className="mt-[3px] shrink-0 text-[9px]">▸</span>
+                        {bullet}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── FOOTER ──────────────────────────────────────────────────── */}
+        {profile.plan === "free" && !recruiterMode && (
+          <footer className={t.footer}>
+            Built with{" "}
+            <Link href="/" className="underline underline-offset-2 opacity-60 hover:opacity-100">
+              foliopage
+            </Link>
+          </footer>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ─── SPLIT layout ─────────────────────────────────────────────────────────────
+// Fixed 42vw left identity panel · scrollable right content
+// Used by: Horizon
+
+function SplitLayout({
+  profile,
+  recruiterMode,
+  childPage,
+  t,
+  hasResumeUrl,
+  contactLinks,
+}: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
+  return (
+    <div className={t.splitOuter}>
+      {/* ── LEFT PANEL (fixed identity) ── */}
+      <aside className={t.splitLeft}>
+        <div className={t.splitLeftInner}>
+          {/* Avatar */}
+          {profile.profileImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.profileImageUrl}
+              alt={`${profile.name}`}
+              className="mb-6 h-16 w-16 rounded-full object-cover ring-1 ring-white/10"
+              loading="lazy"
+              decoding="async"
+            />
+          )}
+
+          {/* Pills */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            <span className={t.pill}>
+              <GraduationCap size={11} aria-hidden />
+              {profile.university} · {profile.gradYear}
+            </span>
+            {profile.location && (
+              <span className={t.pill}>
+                <MapPin size={11} aria-hidden />
+                {profile.location}
+              </span>
+            )}
+            <span className={t.pillAccent}>
+              <Sparkle size={11} aria-hidden />
+              {profile.internshipStatus}
+            </span>
+          </div>
+
+          {/* Name + headline + bio — pushed toward bottom via mt-auto wrapper */}
+          <div className={t.splitHeroArea}>
+            <h1
+              className={t.heroName}
+              style={{ fontFamily: t.fontDisplay || undefined }}
+            >
+              {profile.name}
+            </h1>
+            <p className={`${t.heroHeadline} mt-3`}>{profile.headline}</p>
+            <p className={`${t.heroBio} mt-4`}>{profile.summary}</p>
+
+            {/* CTAs */}
+            <div className="mt-6 flex flex-wrap gap-3">
+              {hasResumeUrl && (
+                <a href={profile.resume.url} download className={t.ctaPrimary}>
+                  <FilePdf size={15} aria-hidden />
+                  Resume
+                </a>
+              )}
+              {profile.contact.email && (
+                <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
+                  <EnvelopeSimple size={15} aria-hidden />
+                  Email
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* Contact nav */}
+          {contactLinks.length > 0 && (
+            <nav className="mt-8" aria-label="Contact links">
+              {contactLinks.map((entry) => (
+                <a
+                  key={`${entry.type}-${entry.href}`}
+                  href={entry.href}
+                  target={entry.type !== "email" ? "_blank" : undefined}
+                  rel="noopener noreferrer"
+                  className={t.linkRow}
+                >
+                  <span className={t.linkRowIcon}>
+                    <ContactIcon type={entry.type} />
+                  </span>
+                  <span className="flex-1 truncate text-sm">{entry.label}</span>
+                  <ArrowUpRight size={11} className="shrink-0 opacity-30" aria-hidden />
+                </a>
+              ))}
+            </nav>
+          )}
+
+          {/* Footer */}
+          {profile.plan === "free" && !recruiterMode && (
+            <p className={`${t.footer} mt-auto pt-10`}>
+              Built with{" "}
+              <Link href="/" className="underline underline-offset-2 opacity-60 hover:opacity-100">
+                foliopage
+              </Link>
+            </p>
+          )}
+        </div>
+      </aside>
+
+      {/* ── RIGHT PANEL (scrollable content) ── */}
+      <main className={t.splitRight}>
+        {/* Projects */}
+        <section>
+          <h2 className={`${t.sectionTitle} mb-5`}>
+            <Briefcase size={13} aria-hidden />
+            Projects
+          </h2>
+          <div className="flex flex-col gap-4">
+            {profile.projects.map((project, idx) => (
+              <article key={project.title} className={t.projectCard}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-[10px] tabular-nums opacity-30 shrink-0">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <h3
+                      className="text-[15px] font-semibold leading-tight truncate"
+                      style={{ fontFamily: t.fontDisplay || undefined }}
+                    >
+                      {project.title}
+                    </h3>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    {project.demoUrl && (
+                      <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="Demo">
+                        <ArrowUpRight size={12} aria-hidden />
+                      </a>
+                    )}
+                    {project.githubUrl && (
+                      <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="GitHub">
+                        <GithubLogo size={12} aria-hidden />
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm opacity-55 mb-3">{project.summary}</p>
+                {!recruiterMode && (
+                  <div className="flex flex-col gap-1 text-sm mb-3">
+                    {[
+                      { label: "Problem", value: project.problem },
+                      { label: "Solution", value: project.solution },
+                      { label: "Impact", value: project.impact },
+                    ].map(({ label, value }) => (
+                      <p key={label}>
+                        <span className="font-semibold opacity-70">{label} — </span>
+                        <span className="opacity-50">{value}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {project.techStack.map((tech) => (
+                    <span key={tech} className={t.chip}>{tech}</span>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {childPage && <ChildPageSection profile={profile} childPage={childPage} t={t} />}
+
+        {/* Skills */}
+        {!recruiterMode && skillGroups.length > 0 && (
+          <section className={t.section}>
+            <h2 className={`${t.sectionTitle} mb-5`}>
+              <Notepad size={13} aria-hidden />
+              Skills
+            </h2>
+            <div className="flex flex-col gap-5">
+              {skillGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-30 mb-2">
+                    {group.label}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.values.map((v) => (
+                      <span key={v} className={t.chip}>{v}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Experience */}
+        {!recruiterMode && profile.experiences.length > 0 && (
+          <section className={t.section}>
+            <h2 className={`${t.sectionTitle} mb-5`}>
+              <UserCircle size={13} aria-hidden />
+              Experience
+            </h2>
+            <div className="flex flex-col gap-6">
+              {profile.experiences.map((exp) => (
+                <article key={`${exp.role}-${exp.org}`} className="pl-3 border-l border-current/15">
+                  <div className="flex items-baseline justify-between gap-3 mb-0.5">
+                    <p className="text-sm font-semibold">{exp.role}</p>
+                    <span className="text-[10px] opacity-30 tabular-nums shrink-0">{exp.period}</span>
+                  </div>
+                  <p className="text-xs opacity-50 mb-2">{exp.org}</p>
+                  <ul className="flex flex-col gap-1">
+                    {exp.bullets.map((b) => (
+                      <li key={b} className="flex gap-2 text-sm opacity-45">
+                        <span aria-hidden className="mt-[4px] shrink-0 text-[8px]">▸</span>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Mobile footer */}
+        {profile.plan === "free" && !recruiterMode && (
+          <footer className={`${t.footer} mt-8 lg:hidden`}>
+            Built with{" "}
+            <Link href="/" className="underline underline-offset-2 opacity-60 hover:opacity-100">
+              foliopage
+            </Link>
+          </footer>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ─── SCROLLYTELLING layout ────────────────────────────────────────────────────
+// Full-height sections, bg image hero, side nav dots
+// Used by: Odyssey
+
+function ScrollytellingLayout({
+  profile,
+  recruiterMode,
+  childPage,
+  t,
+  hasResumeUrl,
+  contactLinks,
+  bgImageUrl,
+  bgImageOverlay = 50,
+}: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
+  const overlayOpacity = Math.max(0, Math.min(100, bgImageOverlay)) / 100;
+
+  return (
+    <div
+      className="relative min-h-dvh"
+      style={bgImageUrl ? {
+        backgroundImage: `url(${bgImageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      } : undefined}
+    >
+
+      {/* Fixed side nav dots */}
+      <div className="fixed right-5 top-1/2 z-50 hidden -translate-y-1/2 flex-col gap-2 lg:flex" aria-hidden>
+        {["hero", "projects", "skills", "experience"].map((id) => (
+          <a key={id} href={`#st-${id}`} className={t.stNavDot} />
+        ))}
+      </div>
+
+      {/* ── HERO SECTION ── */}
+      <section id="st-hero" className={t.stHeroSection}>
+        {/* Dark gradient overlay for text legibility over bg image */}
+        <div
+          className={t.stHeroOverlay}
+          style={{
+            background: "linear-gradient(to bottom, rgba(8,9,14,0.3) 0%, rgba(8,9,14,0.55) 60%, rgba(8,9,14,0.85) 100%)",
+            opacity: bgImageUrl ? overlayOpacity : 1,
+          }}
+        />
+
+        <div className={t.stHeroContent}>
+          {profile.profileImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.profileImageUrl}
+              alt={profile.name}
+              className="mx-auto mb-5 h-20 w-20 rounded-full object-cover ring-1 ring-white/20"
+              loading="lazy"
+              decoding="async"
+            />
+          )}
+          <div className="flex flex-wrap justify-center gap-2 mb-5">
+            <span className={t.pill}>
+              <GraduationCap size={11} aria-hidden />
+              {profile.university} · {profile.gradYear}
+            </span>
+            {profile.location && (
+              <span className={t.pill}>
+                <MapPin size={11} aria-hidden />
+                {profile.location}
+              </span>
+            )}
+            <span className={t.pillAccent}>
+              <Sparkle size={11} aria-hidden />
+              {profile.internshipStatus}
+            </span>
+          </div>
+          <h1
+            className={t.heroName}
+            style={{ fontFamily: t.fontDisplay || undefined }}
+          >
+            {profile.name}
+          </h1>
+          <p className={`${t.heroHeadline} mt-6`}>{profile.headline}</p>
+          <p className={`${t.heroBio} mt-4 mx-auto max-w-xl`}>{profile.summary}</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            {hasResumeUrl && (
+              <a href={profile.resume.url} download className={t.ctaPrimary}>
+                <FilePdf size={15} aria-hidden />
+                Download résumé
+              </a>
+            )}
+            {profile.contact.email && (
+              <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
+                <EnvelopeSimple size={15} aria-hidden />
+                Get in touch
+              </a>
+            )}
+          </div>
+          {/* Scroll hint */}
+          <p className="mt-10 text-[11px] uppercase tracking-[0.3em] opacity-25 animate-bounce">
+            scroll
+          </p>
+        </div>
+      </section>
+
+      {/* ── PROJECTS SECTION ── */}
+      <section id="st-projects" className={t.stContentSection}>
+        <div className={t.stSectionInner}>
+          <h2 className={`${t.sectionTitle} mb-5`}>
+            <Briefcase size={13} aria-hidden />
+            Projects
+          </h2>
+          <div className="flex flex-col gap-4">
+            {profile.projects.map((project, idx) => (
+              <article key={project.title} className={t.stProjectCard}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[10px] tabular-nums opacity-30">{String(idx + 1).padStart(2, "0")}</span>
+                    <h3 className="text-base font-semibold" style={{ fontFamily: t.fontDisplay || undefined }}>
+                      {project.title}
+                    </h3>
+                  </div>
+                  <div className="flex gap-1">
+                    {project.demoUrl && (
+                      <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="Demo">
+                        <ArrowUpRight size={12} aria-hidden />
+                      </a>
+                    )}
+                    {project.githubUrl && (
+                      <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="GitHub">
+                        <GithubLogo size={12} aria-hidden />
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm opacity-55 mb-3">{project.summary}</p>
+                {!recruiterMode && (
+                  <div className="flex flex-col gap-1 text-sm mb-3">
+                    {[
+                      { label: "Problem", value: project.problem },
+                      { label: "Solution", value: project.solution },
+                      { label: "Impact", value: project.impact },
+                    ].map(({ label, value }) => (
+                      <p key={label}>
+                        <span className="font-medium opacity-70">{label} — </span>
+                        <span className="opacity-50">{value}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {project.techStack.map((tech) => <span key={tech} className={t.chip}>{tech}</span>)}
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── SKILLS + CONNECT SECTION ── */}
+      {!recruiterMode && skillGroups.length > 0 && (
+        <section id="st-skills" className={t.stContentSection}>
+          <div className={t.stSectionInner}>
+            <h2 className={`${t.sectionTitle} mb-5`}>
+              <Notepad size={13} aria-hidden />
+              Skills
+            </h2>
+            <div className="flex flex-col gap-6">
+              {skillGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest opacity-30 mb-2">{group.label}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {group.values.map((v) => <span key={v} className={t.chip}>{v}</span>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {contactLinks.length > 0 && (
+              <div className="mt-10">
+                <h2 className={`${t.sectionTitle} mb-5`}>
+                  <LinkSimple size={13} aria-hidden />
+                  Connect
+                </h2>
+                <div className="flex flex-col">
+                  {contactLinks.map((entry) => (
+                    <a
+                      key={`${entry.type}-${entry.href}`}
+                      href={entry.href}
+                      target={entry.type !== "email" ? "_blank" : undefined}
+                      rel="noopener noreferrer"
+                      className={t.linkRow}
+                    >
+                      <span className={t.linkRowIcon}><ContactIcon type={entry.type} /></span>
+                      <span className="flex-1 text-sm">{entry.label}</span>
+                      <ArrowUpRight size={11} className="opacity-30" aria-hidden />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── EXPERIENCE SECTION ── */}
+      {!recruiterMode && profile.experiences.length > 0 && (
+        <section id="st-experience" className={t.stContentSection}>
+          <div className={t.stSectionInner}>
+            <h2 className={`${t.sectionTitle} mb-5`}>
+              <UserCircle size={13} aria-hidden />
+              Experience
+            </h2>
+            <div className="flex flex-col gap-8">
+              {profile.experiences.map((exp) => (
+                <article key={`${exp.role}-${exp.org}`} className="pl-4 border-l border-white/15">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                    <p className="text-base font-semibold">{exp.role}</p>
+                    <span className="text-[10px] opacity-30 tabular-nums">{exp.period}</span>
+                  </div>
+                  <p className="text-sm opacity-45 mb-2">{exp.org}</p>
+                  <ul className="flex flex-col gap-1.5">
+                    {exp.bullets.map((b) => (
+                      <li key={b} className="flex gap-2 text-sm opacity-40">
+                        <span aria-hidden className="mt-[4px] shrink-0 text-[8px]">▸</span>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+            {/* Resume + footer */}
+            <div className="mt-8 pt-6 border-t border-white/10">
+              {profile.plan === "free" && !recruiterMode && (
+                <p className={t.footer}>
+                  Built with{" "}
+                  <Link href="/" className="underline opacity-60 hover:opacity-100">foliopage</Link>
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// ─── MODULAR GRID layout ──────────────────────────────────────────────────────
+// Asymmetric CSS grid mosaic of variable-height tiles
+// Used by: Mosaic
+
+function ModularGridLayout({
+  profile,
+  recruiterMode,
+  t,
+  hasResumeUrl,
+  contactLinks,
+}: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
+  return (
+    <div className={t.modularGrid}>
+
+      {/* ── HERO TILE (2-col / 2-row) ── */}
+      <div className={t.modularHeroTile}>
+        {profile.profileImageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={profile.profileImageUrl}
+            alt={profile.name}
+            className="mb-5 h-14 w-14 rounded-full object-cover ring-2 ring-white/30"
+            loading="lazy"
+            decoding="async"
+          />
+        )}
+        <div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className={t.pill}><GraduationCap size={11} aria-hidden /> {profile.university} · {profile.gradYear}</span>
+            {profile.location && <span className={t.pill}><MapPin size={11} aria-hidden /> {profile.location}</span>}
+            <span className={t.pillAccent}><Sparkle size={11} aria-hidden /> {profile.internshipStatus}</span>
+          </div>
+          <h1
+            className={t.heroName}
+            style={{ fontFamily: t.fontDisplay || undefined }}
+          >
+            {profile.name}
+          </h1>
+          <p className={`${t.heroHeadline} mt-2`}>{profile.headline}</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {profile.contact.email && (
+              <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
+                <EnvelopeSimple size={14} aria-hidden /> Email
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── PROJECT TILES ── */}
+      {profile.projects.slice(0, 4).map((project, idx) => (
+        <div key={project.title} className={t.modularProjectTile}>
+          <div>
+            <p className="text-[10px] tabular-nums opacity-30 mb-1">{String(idx + 1).padStart(2, "0")}</p>
+            <h3
+              className="text-sm font-semibold leading-tight mb-1.5"
+              style={{ fontFamily: t.fontDisplay || undefined }}
+            >
+              {project.title}
+            </h3>
+            <p className="text-xs opacity-55 leading-relaxed line-clamp-3">{project.summary}</p>
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex flex-wrap gap-1">
+              {project.techStack.slice(0, 2).map((t2) => (
+                <span key={t2} className={t.chip}>{t2}</span>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              {project.demoUrl && (
+                <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="Demo">
+                  <ArrowUpRight size={11} aria-hidden />
+                </a>
+              )}
+              {project.githubUrl && (
+                <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="GitHub">
+                  <GithubLogo size={11} aria-hidden />
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* ── SKILLS TILE ── */}
+      {!recruiterMode && skillGroups.length > 0 && (
+        <div className={t.modularSkillsTile}>
+          <p className={`${t.sectionTitle} mb-3`}><Notepad size={12} aria-hidden /> Skills</p>
+          <div className="flex flex-wrap gap-1.5">
+            {skillGroups.flatMap((g, gi) => g.values.map((v, vi) => ({ v, key: `${gi}-${vi}` }))).map(({ v, key }) => (
+              <span key={key} className={t.chip}>{v}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── CONNECT TILE ── */}
+      {contactLinks.length > 0 && (
+        <div className={t.modularConnectTile}>
+          <p className={`${t.sectionTitle} mb-3`}><LinkSimple size={12} aria-hidden /> Connect</p>
+          <div className="flex flex-col gap-1">
+            {contactLinks.slice(0, 4).map((entry) => (
+              <a
+                key={`${entry.type}-${entry.href}`}
+                href={entry.href}
+                target={entry.type !== "email" ? "_blank" : undefined}
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-xs opacity-60 hover:opacity-100 transition-opacity py-1"
+              >
+                <ContactIcon type={entry.type} />
+                <span className="truncate">{entry.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── RÉSUMÉ TILE ── */}
+      <div className={t.modularResumeTile}>
+        <p className={`${t.sectionTitle} mb-2`}><FilePdf size={12} aria-hidden /> Résumé</p>
+        <p className="text-xs opacity-40 mb-3">{resumeDateLabel(profile.resume.lastUpdated)}</p>
+        {hasResumeUrl ? (
+          <a href={profile.resume.url} download className={t.ctaPrimary}>
+            <FilePdf size={13} aria-hidden /> Download
+          </a>
+        ) : (
+          <p className="text-xs opacity-40">On request.</p>
+        )}
+      </div>
+
+      {/* ── EXPERIENCE TILE ── */}
+      {!recruiterMode && profile.experiences.length > 0 && (
+        <div className={t.modularExpTile}>
+          <p className={`${t.sectionTitle} mb-4`}><UserCircle size={12} aria-hidden /> Experience</p>
+          <div className="flex flex-col gap-5 overflow-hidden">
+            {profile.experiences.map((exp) => (
+              <article key={`${exp.role}-${exp.org}`} className="pl-3 border-l-2 border-current/20">
+                <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                  <p className="text-sm font-semibold">{exp.role}</p>
+                  <span className="text-[10px] opacity-30 tabular-nums shrink-0">{exp.period}</span>
+                </div>
+                <p className="text-xs opacity-50 mb-1">{exp.org}</p>
+                <ul className="flex flex-col gap-0.5">
+                  {exp.bullets.slice(0, 2).map((b) => (
+                    <li key={b} className="flex gap-1.5 text-xs opacity-40">
+                      <span aria-hidden className="mt-[3px] shrink-0 text-[8px]">▸</span>
+                      <span className="line-clamp-2">{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper used in ModularGridLayout
+// ─── FULLSCREEN layout ────────────────────────────────────────────────────────
+// 100dvh bg-image hero, refined content below
+// Used by: Cinematic
+
+function FullscreenLayout({
+  profile,
+  recruiterMode,
+  childPage,
+  t,
+  hasResumeUrl,
+  contactLinks,
+  bgImageUrl,
+  bgImageOverlay = 50,
+}: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
+  const overlayOpacity = Math.max(0, Math.min(100, bgImageOverlay)) / 100;
+
+  return (
+    <>
+      {/* ── HERO — 100dvh with bg image ── */}
+      <section className={t.fsHero}>
+        {bgImageUrl && (
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${bgImageUrl})` }}
+          />
+        )}
+        <div
+          className={t.fsHeroOverlay}
+          style={{ opacity: bgImageUrl ? overlayOpacity : 1 }}
+        />
+        <div className={t.fsHeroContent}>
+          {profile.profileImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.profileImageUrl}
+              alt={profile.name}
+              className="mx-auto mb-5 h-16 w-16 rounded-full object-cover ring-1 ring-white/20"
+              loading="lazy"
+              decoding="async"
+            />
+          )}
+          <div className="flex flex-wrap justify-center gap-2 mb-5">
+            <span className={t.pill}><GraduationCap size={11} aria-hidden /> {profile.university} · {profile.gradYear}</span>
+            {profile.location && <span className={t.pill}><MapPin size={11} aria-hidden /> {profile.location}</span>}
+            <span className={t.pillAccent}><Sparkle size={11} aria-hidden /> {profile.internshipStatus}</span>
+          </div>
+          <h1
+            className={t.heroName}
+            style={{ fontFamily: t.fontDisplay || undefined }}
+          >
+            {profile.name}
+          </h1>
+          <p className={`${t.heroHeadline} mt-6`}>{profile.headline}</p>
+          <div className="mt-10 flex flex-wrap justify-center gap-4">
+            {hasResumeUrl && (
+              <a href={profile.resume.url} download className={t.ctaPrimary}>
+                <FilePdf size={15} aria-hidden /> Download résumé
+              </a>
+            )}
+            {profile.contact.email && (
+              <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
+                <EnvelopeSimple size={15} aria-hidden /> Get in touch
+              </a>
+            )}
+          </div>
+          {/* Scroll indicator */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
+            <span className="text-[10px] uppercase tracking-[0.3em]">scroll</span>
+            <div className="h-8 w-px bg-current" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── BELOW-HERO CONTENT ── */}
+      <div className={t.fsContent}>
+        <section>
+          <h2 className={`${t.sectionTitle} mb-5`}>
+            <Briefcase size={13} aria-hidden /> Projects
+          </h2>
+          <div className="flex flex-col gap-4">
+            {profile.projects.map((project, idx) => (
+              <article key={project.title} className={t.fsProjectCard}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[10px] tabular-nums opacity-25">{String(idx + 1).padStart(2, "0")}</span>
+                    <h3 className="text-base font-light tracking-wide" style={{ fontFamily: t.fontDisplay || undefined }}>
+                      {project.title}
+                    </h3>
+                  </div>
+                  <div className="flex gap-1">
+                    {project.demoUrl && <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="Demo"><ArrowUpRight size={12} aria-hidden /></a>}
+                    {project.githubUrl && <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="GitHub"><GithubLogo size={12} aria-hidden /></a>}
+                  </div>
+                </div>
+                <p className="text-sm opacity-50 mb-3">{project.summary}</p>
+                {!recruiterMode && (
+                  <div className="flex flex-col gap-1 text-sm mb-3">
+                    {[{ label: "Problem", value: project.problem }, { label: "Solution", value: project.solution }, { label: "Impact", value: project.impact }].map(({ label, value }) => (
+                      <p key={label}><span className="font-medium opacity-65">{label} — </span><span className="opacity-45">{value}</span></p>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {project.techStack.map((tech) => <span key={tech} className={t.chip}>{tech}</span>)}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {childPage && <ChildPageSection profile={profile} childPage={childPage} t={t} />}
+
+        {!recruiterMode && skillGroups.length > 0 && (
+          <section className={t.fsSection}>
+            <h2 className={`${t.sectionTitle} mb-6`}><Notepad size={13} aria-hidden /> Skills</h2>
+            <div className="flex flex-col gap-5">
+              {skillGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="text-[10px] font-light uppercase tracking-[0.25em] opacity-30 mb-2">{group.label}</p>
+                  <div className="flex flex-wrap gap-1.5">{group.values.map((v) => <span key={v} className={t.chip}>{v}</span>)}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {contactLinks.length > 0 && (
+          <section className={t.fsSection}>
+            <h2 className={`${t.sectionTitle} mb-5`}><LinkSimple size={13} aria-hidden /> Connect</h2>
+            <div className="flex flex-col">
+              {contactLinks.map((entry) => (
+                <a key={`${entry.type}-${entry.href}`} href={entry.href} target={entry.type !== "email" ? "_blank" : undefined} rel="noopener noreferrer" className={t.linkRow}>
+                  <span className={t.linkRowIcon}><ContactIcon type={entry.type} /></span>
+                  <span className="flex-1 text-sm">{entry.label}</span>
+                  <ArrowUpRight size={11} className="opacity-25" aria-hidden />
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {!recruiterMode && profile.experiences.length > 0 && (
+          <section className={t.fsSection}>
+            <h2 className={`${t.sectionTitle} mb-6`}><UserCircle size={13} aria-hidden /> Experience</h2>
+            <div className="flex flex-col gap-6">
+              {profile.experiences.map((exp) => (
+                <article key={`${exp.role}-${exp.org}`} className="pl-4 border-l border-white/10">
+                  <div className="flex items-baseline justify-between gap-3 mb-0.5">
+                    <p className="text-sm font-medium">{exp.role}</p>
+                    <span className="text-[10px] opacity-25 tabular-nums shrink-0">{exp.period}</span>
+                  </div>
+                  <p className="text-xs opacity-40 mb-2">{exp.org}</p>
+                  <ul className="flex flex-col gap-1">
+                    {exp.bullets.map((b) => (
+                      <li key={b} className="flex gap-2 text-sm opacity-38">
+                        <span aria-hidden className="mt-[4px] shrink-0 text-[8px]">▸</span>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {profile.plan === "free" && !recruiterMode && (
+          <footer className={t.footer}>
+            Built with{" "}
+            <Link href="/" className="underline opacity-50 hover:opacity-100">foliopage</Link>
+          </footer>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Z-PATTERN layout ─────────────────────────────────────────────────────────
+// Wide hero header, then alternating left/right content blocks
+// Used by: Current
+
+function ZPatternLayout({
+  profile,
+  recruiterMode,
+  childPage,
+  t,
+  hasResumeUrl,
+  contactLinks,
+}: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
+  return (
+    <div className={t.zpOuter}>
+
+      {/* ── HERO — full-width Z top bar ── */}
+      <header className={t.zpHero}>
+        <div className="flex flex-wrap gap-2 mb-4">
+          <span className={t.pill}><GraduationCap size={11} aria-hidden /> {profile.university} · {profile.gradYear}</span>
+          {profile.location && <span className={t.pill}><MapPin size={11} aria-hidden /> {profile.location}</span>}
+          <span className={t.pillAccent}><Sparkle size={11} aria-hidden /> {profile.internshipStatus}</span>
+        </div>
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <div>
+            {profile.profileImageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.profileImageUrl}
+                alt={profile.name}
+                className="mb-5 h-14 w-14 rounded-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            )}
+            <h1
+              className={t.heroName}
+              style={{ fontFamily: t.fontDisplay || undefined }}
+            >
+              {profile.name}
+            </h1>
+            <p className={`${t.heroHeadline} mt-3`}>{profile.headline}</p>
+          </div>
+          <div className="flex flex-wrap gap-3 lg:flex-col lg:items-end">
+            {hasResumeUrl && (
+              <a href={profile.resume.url} download className={t.ctaPrimary}>
+                <FilePdf size={14} aria-hidden /> Download résumé
+              </a>
+            )}
+            {profile.contact.email && (
+              <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
+                <EnvelopeSimple size={14} aria-hidden /> Get in touch
+              </a>
+            )}
+          </div>
+        </div>
+        <p className={`${t.heroBio} mt-6`}>{profile.summary}</p>
+      </header>
+
+      {/* ── Z-BLOCKS — alternating left/right ── */}
+      {profile.projects.map((project, idx) => {
+        const isEven = idx % 2 === 0;
+        return (
+          <div key={project.title} className={isEven ? t.zpBlock : t.zpBlockAlt}>
+            {/* Text side */}
+            <div className={`${t.zpBlockText} ${isEven ? "" : "lg:order-2"}`}>
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] opacity-30 mb-3">
+                {String(idx + 1).padStart(2, "0")} / Project
+              </p>
+              <h2
+                className="text-2xl font-bold leading-tight mb-3"
+                style={{ fontFamily: t.fontDisplay || undefined }}
+              >
+                {project.title}
+              </h2>
+              <p className="text-sm opacity-60 mb-4 leading-relaxed">{project.summary}</p>
+              {!recruiterMode && (
+                <div className="flex flex-col gap-1.5 text-sm mb-4">
+                  {[
+                    { label: "Problem", value: project.problem },
+                    { label: "Solution", value: project.solution },
+                    { label: "Impact", value: project.impact },
+                  ].map(({ label, value }) => (
+                    <p key={label}>
+                      <span className="font-semibold opacity-75">{label} — </span>
+                      <span className="opacity-55">{value}</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {project.techStack.map((tech) => <span key={tech} className={t.chip}>{tech}</span>)}
+              </div>
+              <div className="flex gap-2">
+                {project.demoUrl && (
+                  <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className={t.ctaPrimary}>
+                    <ArrowUpRight size={14} aria-hidden /> Live demo
+                  </a>
+                )}
+                {project.githubUrl && (
+                  <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className={t.ctaOutline}>
+                    <GithubLogo size={14} aria-hidden /> Code
+                  </a>
+                )}
+              </div>
+            </div>
+            {/* Visual accent side */}
+            <div className={`${t.zpBlockVisual} ${isEven ? "" : "lg:order-1"}`}>
+              <div className="text-center">
+                <p
+                  className="text-6xl font-black text-white/20 leading-none"
+                  style={{ fontFamily: t.fontDisplay || undefined }}
+                >
+                  {String(idx + 1).padStart(2, "0")}
+                </p>
+                <p className="mt-2 text-sm font-bold text-white/60 uppercase tracking-widest">
+                  {project.techStack[0]}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* ── SKILLS + CONNECT + EXPERIENCE ── */}
+      {(!recruiterMode || contactLinks.length > 0) && (
+        <div className={`grid grid-cols-1 gap-0 ${t.divider} lg:grid-cols-3`}>
+          {!recruiterMode && skillGroups.length > 0 && (
+            <div className={`${t.divider} px-0 py-10 lg:border-b-0 lg:border-r lg:px-12 lg:py-12`}>
+              <h2 className={`${t.sectionTitle} mb-5`}><Notepad size={13} aria-hidden /> Skills</h2>
+              <div className="flex flex-col gap-4">
+                {skillGroups.map((group) => (
+                  <div key={group.label}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-30 mb-2">{group.label}</p>
+                    <div className="flex flex-wrap gap-1.5">{group.values.map((v) => <span key={v} className={t.chip}>{v}</span>)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {contactLinks.length > 0 && (
+            <div className={`${t.divider} px-0 py-10 lg:border-b-0 lg:border-r lg:px-12 lg:py-12`}>
+              <h2 className={`${t.sectionTitle} mb-5`}><LinkSimple size={13} aria-hidden /> Connect</h2>
+              <div className="flex flex-col">
+                {contactLinks.map((entry) => (
+                  <a key={`${entry.type}-${entry.href}`} href={entry.href} target={entry.type !== "email" ? "_blank" : undefined} rel="noopener noreferrer" className={t.linkRow}>
+                    <span className={t.linkRowIcon}><ContactIcon type={entry.type} /></span>
+                    <span className="flex-1 text-sm">{entry.label}</span>
+                    <ArrowUpRight size={11} className="opacity-30" aria-hidden />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          {!recruiterMode && profile.experiences.length > 0 && (
+            <div className="px-0 py-10 lg:px-12 lg:py-12">
+              <h2 className={`${t.sectionTitle} mb-5`}><UserCircle size={13} aria-hidden /> Experience</h2>
+              <div className="flex flex-col gap-5">
+                {profile.experiences.map((exp) => (
+                  <article key={`${exp.role}-${exp.org}`} className={t.projectCardAlt}>
+                    <div className="flex items-baseline justify-between gap-2 mb-1">
+                      <p className="text-sm font-semibold">{exp.role}</p>
+                      <span className="text-[10px] opacity-30 tabular-nums shrink-0">{exp.period}</span>
+                    </div>
+                    <p className="text-xs opacity-50 mb-1.5">{exp.org}</p>
+                    <ul className="flex flex-col gap-0.5">
+                      {exp.bullets.map((b) => (
+                        <li key={b} className="flex gap-1.5 text-xs opacity-45">
+                          <span aria-hidden className="mt-[3px] shrink-0 text-[8px]">▸</span>
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {profile.plan === "free" && !recruiterMode && (
+        <footer className={`${t.footer} py-6`}>
+          Built with <Link href="/" className="underline opacity-60 hover:opacity-100">foliopage</Link>
+        </footer>
+      )}
+    </div>
+  );
+}
+
+// ─── F-PATTERN layout ─────────────────────────────────────────────────────────
+// Newspaper F: strong top masthead, left lead rail, right content stream
+// Used by: Dispatch
+
+function FPatternLayout({
+  profile,
+  recruiterMode,
+  childPage,
+  t,
+  hasResumeUrl,
+  contactLinks,
+}: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
+  const leadProject = profile.projects[0];
+  const streamProjects = profile.projects.slice(1);
+
+  return (
+    <div className={t.fpOuter}>
+
+      {/* ── MASTHEAD — F top bar (full-width scan) ── */}
+      <header className={t.fpHero}>
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap gap-2 mb-3">
+              <span className={t.pill}><GraduationCap size={11} aria-hidden /> {profile.university} · {profile.gradYear}</span>
+              {profile.location && <span className={t.pill}><MapPin size={11} aria-hidden /> {profile.location}</span>}
+              <span className={t.pillAccent}><Sparkle size={11} aria-hidden /> {profile.internshipStatus}</span>
+            </div>
+            <h1
+              className={`${t.heroName} text-5xl lg:text-7xl xl:text-8xl`}
+              style={{ fontFamily: t.fontDisplay || undefined }}
+            >
+              {profile.name}
+            </h1>
+            <p className={`${t.heroHeadline} mt-2 text-lg`}>{profile.headline}</p>
+          </div>
+          <div className="flex flex-col items-end gap-3 shrink-0">
+            {profile.profileImageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.profileImageUrl}
+                alt={profile.name}
+                className="h-16 w-16 rounded object-cover border-2 border-[#1a1a18]/20"
+                loading="lazy"
+                decoding="async"
+              />
+            )}
+          </div>
+        </div>
+        <p className={`${t.heroBio} mt-4 max-w-2xl`}>{profile.summary}</p>
+      </header>
+
+      {/* ── F BODY — left rail + right stream ── */}
+      <div className="flex flex-col lg:flex-row">
+
+        {/* LEFT RAIL — lead story (F left anchor, ~40%) */}
+        <div className="lg:w-[40%]">
+          <div className={t.fpRail}>
+            {/* Lead project */}
+            {leadProject && (
+              <div>
+                <p className={`${t.sectionTitle} mb-3`}><Briefcase size={12} aria-hidden /> Lead Project</p>
+                <h2
+                  className="text-3xl font-bold leading-tight mb-3"
+                  style={{ fontFamily: t.fontDisplay || undefined }}
+                >
+                  {leadProject.title}
+                </h2>
+                <p className="text-sm opacity-60 mb-4 leading-relaxed">{leadProject.summary}</p>
+                {!recruiterMode && (
+                  <div className="flex flex-col gap-2 text-sm mb-4 border-l-4 border-[#1a1a18] pl-3">
+                    {[
+                      { label: "Problem", value: leadProject.problem },
+                      { label: "Solution", value: leadProject.solution },
+                      { label: "Impact", value: leadProject.impact },
+                    ].map(({ label, value }) => (
+                      <p key={label}>
+                        <span className="font-bold">{label} — </span>
+                        <span className="opacity-60">{value}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {leadProject.techStack.map((tech) => <span key={tech} className={t.chip}>{tech}</span>)}
+                </div>
+                <div className="flex gap-2">
+                  {leadProject.demoUrl && (
+                    <a href={leadProject.demoUrl} target="_blank" rel="noopener noreferrer" className={t.ctaPrimary}>
+                      <ArrowUpRight size={13} aria-hidden /> Live demo
+                    </a>
+                  )}
+                  {leadProject.githubUrl && (
+                    <a href={leadProject.githubUrl} target="_blank" rel="noopener noreferrer" className={t.ctaOutline}>
+                      <GithubLogo size={13} aria-hidden /> Code
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Contact in rail */}
+            {contactLinks.length > 0 && (
+              <div className="mt-8 pt-6 border-t-2 border-[#1a1a18]">
+                <p className={`${t.sectionTitle} mb-3`}><LinkSimple size={12} aria-hidden /> Connect</p>
+                <div className="flex flex-col">
+                  {contactLinks.map((entry) => (
+                    <a key={`${entry.type}-${entry.href}`} href={entry.href} target={entry.type !== "email" ? "_blank" : undefined} rel="noopener noreferrer" className={t.linkRow}>
+                      <span className={t.linkRowIcon}><ContactIcon type={entry.type} /></span>
+                      <span className="flex-1 truncate text-sm">{entry.label}</span>
+                      <ArrowUpRight size={10} className="opacity-30 shrink-0" aria-hidden />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT STREAM — secondary content (F right scan band) */}
+        <div className="lg:flex-1 border-t-2 border-[#1a1a18] lg:border-t-0">
+          <div className={t.fpStream}>
+
+            {/* More projects as stream items */}
+            {streamProjects.length > 0 && (
+              <>
+                <p className={`${t.sectionTitle} mb-3`}><Briefcase size={12} aria-hidden /> More Projects</p>
+                {streamProjects.map((project, idx) => (
+                  <div key={project.title} className={idx % 2 === 0 ? t.fpStreamItem : t.fpStreamItemAlt}>
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <h3
+                        className="text-base font-bold leading-tight"
+                        style={{ fontFamily: t.fontDisplay || undefined }}
+                      >
+                        {project.title}
+                      </h3>
+                      <div className="flex gap-1 shrink-0">
+                        {project.demoUrl && (
+                          <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="Demo">
+                            <ArrowUpRight size={11} aria-hidden />
+                          </a>
+                        )}
+                        {project.githubUrl && (
+                          <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="GitHub">
+                            <GithubLogo size={11} aria-hidden />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-sm opacity-55 mb-2">{project.summary}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {project.techStack.slice(0, 3).map((tech) => <span key={tech} className={t.chip}>{tech}</span>)}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Skills stream */}
+            {!recruiterMode && skillGroups.length > 0 && (
+              <div className={t.fpStreamItem}>
+                <p className={`${t.sectionTitle} mb-4`}><Notepad size={12} aria-hidden /> Skills</p>
+                <div className="flex flex-col gap-3">
+                  {skillGroups.map((group) => (
+                    <div key={group.label}>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-30 mb-1.5">{group.label}</p>
+                      <div className="flex flex-wrap gap-1.5">{group.values.map((v) => <span key={v} className={t.chip}>{v}</span>)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Experience stream */}
+            {!recruiterMode && profile.experiences.length > 0 && (
+              <div className={t.fpStreamItem}>
+                <p className={`${t.sectionTitle} mb-4`}><UserCircle size={12} aria-hidden /> Experience</p>
+                <div className="flex flex-col gap-4">
+                  {profile.experiences.map((exp) => (
+                    <article key={`${exp.role}-${exp.org}`} className={t.projectCardAlt}>
+                      <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                        <p className="text-sm font-bold">{exp.role}</p>
+                        <span className="text-[10px] opacity-30 tabular-nums shrink-0">{exp.period}</span>
+                      </div>
+                      <p className="text-xs opacity-50 mb-1.5">{exp.org}</p>
+                      <ul className="flex flex-col gap-0.5">
+                        {exp.bullets.map((b) => (
+                          <li key={b} className="flex gap-1.5 text-xs opacity-50">
+                            <span aria-hidden className="mt-[3px] shrink-0 text-[8px]">▸</span>
+                            {b}
+                          </li>
+                        ))}
+                      </ul>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Resume */}
+            <div className={t.fpStreamItem}>
+              <p className={`${t.sectionTitle} mb-3`}><FilePdf size={12} aria-hidden /> Résumé</p>
+              {hasResumeUrl ? (
+                <a href={profile.resume.url} download className={t.ctaPrimary}>
+                  <FilePdf size={13} aria-hidden /> Download PDF
+                </a>
+              ) : (
+                <p className="text-sm opacity-40">Available on request.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {profile.plan === "free" && !recruiterMode && (
+        <footer className={t.footer}>
+          Built with <Link href="/" className="underline opacity-60 hover:opacity-100">foliopage</Link>
+        </footer>
+      )}
+    </div>
+  );
+}
+
+// ─── MANUSCRIPT layout ────────────────────────────────────────────────────────
+//
+// Design principles (Rynzhuk/Kuznetsov-inspired):
+//
+//  DENSITY OSCILLATION
+//    hero      → sparse + asymmetric (name dominates, bio indented ~40% right)
+//    projects  → first project is full-bleed 2-col at display scale
+//                subsequent projects tighter: index + title + tags in row
+//    skills    → compact 4-col grid — densest zone in the page
+//    experience→ 2-col grid: left=meta (role/org/period), right=bullets
+//    footer    → single hairline strip, inline links only
+//
+//  TYPOGRAPHIC ANCHORS
+//    Between every major section: giant low-opacity chapter number (01, 02, 03…)
+//    set in display font at ~160px. This creates a visual landmark that breaks
+//    the uniform card cadence — you're always oriented in the document.
+//
+//  ASYMMETRY
+//    Bio is max-w-[55%] pushed to ml-[40%] on desktop — creates a gutter on
+//    the left that mirrors the chapter number position.
+//    First project description indented differently from subsequent ones.
+//
+function ManuscriptLayout({
+  profile,
+  recruiterMode,
+  t,
+  hasResumeUrl,
+  contactLinks,
+}: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
+  // Chapter anchor helper — massive low-opacity number between sections
+  function ChapterAnchor({ n, label }: { n: number; label: string }) {
+    return (
+      <div className="relative flex items-end gap-6 border-t border-[#e8e0d4]/8 pt-8 pb-4 overflow-hidden">
+        <span
+          className="select-none text-[clamp(80px,12vw,160px)] font-light leading-none text-[#e8e0d4]/[0.06]"
+          style={{ fontFamily: t.fontDisplay || undefined }}
+          aria-hidden
+        >
+          {String(n).padStart(2, "0")}
+        </span>
+        <span className={`${t.sectionTitle} mb-4`}>{label}</span>
+      </div>
+    );
+  }
+
+  return (
+    <main className={t.stackMain}>
+
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <section className={t.stackHeroCard}>
+
+        {/* Pills row */}
+        <div className="flex flex-wrap gap-2">
+          <span className={t.pill}>
+            <GraduationCap size={11} aria-hidden />
+            {profile.university} · {profile.gradYear}
+          </span>
+          {profile.location && (
+            <span className={t.pill}>
+              <MapPin size={11} aria-hidden />
+              {profile.location}
+            </span>
+          )}
+          <span className={t.pillAccent}>
+            <Sparkle size={11} aria-hidden />
+            {profile.internshipStatus}
+          </span>
+        </div>
+
+        {/* Name — light italic at display scale */}
+        <h1
+          className={t.heroName}
+          style={{ fontFamily: t.fontDisplay || undefined }}
+        >
+          {profile.name}
+        </h1>
+
+        {/* Headline — below name, normal weight */}
+        <p className={t.heroHeadline}>{profile.headline}</p>
+
+        {/* Bio — asymmetrically indented on desktop */}
+        <p className="mt-5 text-base font-light leading-[1.75] text-[#e8e0d4]/35 lg:ml-[38%] lg:max-w-[55%]">
+          {profile.summary}
+        </p>
+
+        {/* CTAs */}
+        <div className="mt-8 flex flex-wrap gap-3">
+          {hasResumeUrl && (
+            <a href={profile.resume.url} download className={t.ctaPrimary}>
+              <FilePdf size={14} aria-hidden />
+              Résumé
+            </a>
+          )}
+          {profile.contact.email && (
+            <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
+              <EnvelopeSimple size={14} aria-hidden />
+              Get in touch
+            </a>
+          )}
+        </div>
+      </section>
+
+      {/* ── CHAPTER 01: WORK ─────────────────────────────────────────────── */}
+      {profile.projects.length > 0 && (
+        <>
+          <ChapterAnchor n={1} label="Work" />
+
+          {/* First project — hero scale, 2-col on desktop */}
+          {(() => {
+            const lead = profile.projects[0]!;
+            return (
+              <article className="grid grid-cols-1 gap-8 border-b border-[#e8e0d4]/8 pb-14 lg:grid-cols-2 lg:gap-16">
+                {/* Left: large display title */}
+                <div className="flex flex-col justify-between">
+                  <div>
+                    <p
+                      className="text-[clamp(48px,6vw,88px)] font-light italic leading-[0.9] text-[#e8e0d4]"
+                      style={{ fontFamily: t.fontDisplay || undefined }}
+                    >
+                      {lead.title}
+                    </p>
+                    <p className="mt-5 text-sm font-light leading-relaxed text-[#e8e0d4]/40">
+                      {lead.summary}
+                    </p>
+                  </div>
+                  <div className="mt-6 flex flex-wrap gap-1.5">
+                    {lead.techStack.map((tech) => (
+                      <span key={tech} className={t.chip}>{tech}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right: problem/solution/impact */}
+                <div className="flex flex-col gap-5 border-t border-[#e8e0d4]/8 pt-6 lg:border-0 lg:pt-0 lg:pl-8 lg:border-l lg:border-[#e8e0d4]/8">
+                  {!recruiterMode && [
+                    { label: "Problem", value: lead.problem },
+                    { label: "Solution", value: lead.solution },
+                    { label: "Impact", value: lead.impact },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.35em] text-[#c8a96e]/55 mb-1.5">{label}</p>
+                      <p className="text-sm font-light leading-relaxed text-[#e8e0d4]/45">{value}</p>
+                    </div>
+                  ))}
+                  <div className="mt-auto flex gap-3 pt-4">
+                    {lead.demoUrl && (
+                      <a href={lead.demoUrl} target="_blank" rel="noopener noreferrer" className={t.ctaPrimary}>
+                        <ArrowUpRight size={13} aria-hidden /> Demo
+                      </a>
+                    )}
+                    {lead.githubUrl && (
+                      <a href={lead.githubUrl} target="_blank" rel="noopener noreferrer" className={t.ctaOutline}>
+                        <GithubLogo size={13} aria-hidden /> Code
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })()}
+
+          {/* Remaining projects — compact: index · title + tags in tight rows */}
+          {profile.projects.slice(1).map((project, i) => (
+            <article
+              key={project.title}
+              className="grid grid-cols-1 gap-3 border-b border-[#e8e0d4]/6 py-7 lg:grid-cols-[56px_1fr_auto] lg:items-start lg:gap-8"
+            >
+              <span
+                className="hidden text-[11px] font-light tabular-nums tracking-[0.28em] text-[#c8a96e]/40 lg:block lg:pt-[3px]"
+                aria-hidden
+              >
+                {String(i + 2).padStart(2, "0")}
+              </span>
+              <div>
+                <h3
+                  className="text-[clamp(22px,2.5vw,32px)] font-light italic leading-tight text-[#e8e0d4]"
+                  style={{ fontFamily: t.fontDisplay || undefined }}
+                >
+                  {project.title}
+                </h3>
+                <p className="mt-2 text-sm font-light text-[#e8e0d4]/35 leading-relaxed">{project.summary}</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {project.techStack.map((tech) => (
+                    <span key={tech} className={t.chip}>{tech}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {project.demoUrl && (
+                  <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="Demo">
+                    <ArrowUpRight size={12} aria-hidden />
+                  </a>
+                )}
+                {project.githubUrl && (
+                  <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="GitHub">
+                    <GithubLogo size={12} aria-hidden />
+                  </a>
+                )}
+              </div>
+            </article>
+          ))}
+        </>
+      )}
+
+      {/* ── CHAPTER 02: SKILLS ───────────────────────────────────────────── */}
+      {!recruiterMode && skillGroups.length > 0 && (
+        <>
+          <ChapterAnchor n={2} label="Skills" />
+          {/* Dense 4-col grid — contrast to the sparse hero and wide project section */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-8 pb-14 lg:grid-cols-4">
+            {skillGroups.map((group) => (
+              <div key={group.label} className="flex flex-col gap-3">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.42em] text-[#c8a96e]/50">
+                  {group.label}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {group.values.map((value, vi) => (
+                    <span
+                      key={value}
+                      className="font-light text-[#e8e0d4] leading-snug"
+                      style={{
+                        /* Variable font size: first item larger, steps down */
+                        fontSize: vi === 0 ? "15px" : vi === 1 ? "13px" : "12px",
+                        opacity: vi === 0 ? 0.75 : vi === 1 ? 0.55 : 0.38,
+                      }}
+                    >
+                      {value}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── CHAPTER 03: EXPERIENCE ──────────────────────────────────────── */}
+      {!recruiterMode && profile.experiences.length > 0 && (
+        <>
+          <ChapterAnchor n={3} label="Experience" />
+          <div className="flex flex-col gap-0 pb-14">
+            {profile.experiences.map((exp) => (
+              <div
+                key={`${exp.role}-${exp.org}`}
+                className="grid grid-cols-1 gap-4 border-b border-[#e8e0d4]/6 py-8 lg:grid-cols-[220px_1fr] lg:gap-12"
+              >
+                {/* Left: timeline meta */}
+                <div className="flex flex-col gap-1">
+                  <p
+                    className="text-[clamp(18px,2vw,24px)] font-light italic leading-tight text-[#e8e0d4]/85"
+                    style={{ fontFamily: t.fontDisplay || undefined }}
+                  >
+                    {exp.role}
+                  </p>
+                  <p className="mt-1 text-sm font-light text-[#c8a96e]/65">{exp.org}</p>
+                  <p className="text-[11px] font-light tabular-nums text-[#e8e0d4]/25 mt-1">{exp.period}</p>
+                </div>
+                {/* Right: bullets */}
+                <ul className="flex flex-col gap-2.5">
+                  {exp.bullets.map((bullet) => (
+                    <li key={bullet} className="flex gap-3 text-sm font-light leading-relaxed text-[#e8e0d4]/38">
+                      <span className="mt-[5px] shrink-0 h-[1px] w-4 bg-[#c8a96e]/35" aria-hidden />
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── CHAPTER 04: CONNECT ─────────────────────────────────────────── */}
+      {contactLinks.length > 0 && (
+        <>
+          <ChapterAnchor n={4} label="Connect" />
+          <div className="grid grid-cols-1 gap-1.5 pb-14 sm:grid-cols-2 lg:grid-cols-3">
+            {contactLinks.map((entry) => (
+              <a
+                key={`${entry.type}-${entry.href}`}
+                href={entry.href}
+                target={entry.type !== "email" ? "_blank" : undefined}
+                rel="noopener noreferrer"
+                className={t.linkRow}
+              >
+                <span className={t.linkRowIcon}><ContactIcon type={entry.type} /></span>
+                <span className="flex-1 truncate text-sm font-light">{entry.label}</span>
+                <ArrowUpRight size={12} className="shrink-0 opacity-30" aria-hidden />
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── FOOTER — single hairline, inline ────────────────────────────── */}
+      {profile.plan === "free" && !recruiterMode && (
+        <footer className={t.footer}>
+          Built with{" "}
+          <Link href="/" className="underline underline-offset-4 opacity-60 hover:opacity-100">
+            foliopage
+          </Link>
+        </footer>
+      )}
+    </main>
+  );
+}
+
+
+// ─── VERDICT layout ───────────────────────────────────────────────────────────
+//
+// Design principles (Rynzhuk/Kuznetsov-inspired):
+//
+//  COLOR FIELD INVERSIONS
+//    Hero zone:    full-bleed black card — chalk text on tungsten.
+//                  Negative margins break out of the container to edge-to-edge.
+//    Content zone: reverts to chalk white (#f5f5f0).
+//    Each project alternates: even=dark tile, odd=light tile.
+//    The shell already alternates projectCard/projectCardAlt — Verdict makes
+//    them contrast hard (black vs. white) not just shade-shift.
+//
+//  TYPOGRAPHIC ANCHORS
+//    Section intros use a large Bebas Neue chapter number (01, 02…) at
+//    ~120px opacity-[0.06] — visible but not competing with content.
+//    The 2px top border above each chapter anchor signals a zone break.
+//
+//  DENSITY OSCILLATION
+//    hero      → maximum visual weight (Bebas at ~12vw, full-bleed black)
+//    projects  → full-width alternating tiles, heavy left accent strip
+//    skills    → bordered 4-col grid with accent category labels
+//    experience→ dark-band section with tight 2-col timeline grid
+//    connect   → light minimal rows
+//
+function VerdictLayout({
+  profile,
+  recruiterMode,
+  t,
+  hasResumeUrl,
+  contactLinks,
+}: RenderProps) {
+  const skillGroups = [
+    { label: "Languages", values: profile.skills.languages },
+    { label: "Frameworks", values: profile.skills.frameworks },
+    { label: "Tools", values: profile.skills.tools },
+    { label: "Other", values: profile.skills.other },
+  ].filter((g) => g.values.length > 0);
+
+  // Three accent colors cycling by project index
+  const ACCENTS = ["#e63946", "#457b9d", "#2a9d8f"];
+
+  function ChapterAnchor({ n, label }: { n: number; label: string }) {
+    return (
+      <div className="relative overflow-hidden border-t-2 border-[#111111] pt-8 pb-6">
+        <span
+          className="absolute -top-2 left-0 select-none text-[clamp(80px,11vw,140px)] font-normal leading-none text-[#111111]/[0.04]"
+          style={{ fontFamily: t.fontDisplay || undefined }}
+          aria-hidden
+        >
+          {String(n).padStart(2, "0")}
+        </span>
+        <span className={`${t.sectionTitle} relative z-10`}>{label}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+
+      {/* ── HERO — full-bleed inverted black zone ─────────────────────── */}
+      <header className={t.stackHeroCard}>
+
+        {/* Pills (on dark bg) */}
+        <div className="flex flex-wrap gap-2">
+          <span className={t.pill}>
+            <GraduationCap size={11} aria-hidden />
+            {profile.university} · {profile.gradYear}
+          </span>
+          {profile.location && (
+            <span className={t.pill}>
+              <MapPin size={11} aria-hidden />
+              {profile.location}
+            </span>
+          )}
+          <span className={t.pillAccent}>
+            <Sparkle size={11} aria-hidden />
+            {profile.internshipStatus}
+          </span>
+        </div>
+
+        {/* Bebas display name — the visual anchor of the whole page */}
+        <h1
+          className={t.heroName}
+          style={{ fontFamily: t.fontDisplay || undefined }}
+        >
+          {profile.name}
+        </h1>
+
+        {/* Italic serif headline — contrast to the display-condensed name */}
+        <p
+          className="mt-3 text-lg font-light italic leading-snug text-[#f5f5f0]/45"
+          style={{ fontFamily: t.fontBody || undefined }}
+        >
+          {profile.headline}
+        </p>
+
+        <p className="mt-4 max-w-xl text-sm font-light leading-relaxed text-[#f5f5f0]/32">
+          {profile.summary}
+        </p>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          {hasResumeUrl && (
+            <a href={profile.resume.url} download className={t.ctaPrimary}>
+              <FilePdf size={14} aria-hidden />
+              Résumé
+            </a>
+          )}
+          {profile.contact.email && (
+            <a href={`mailto:${profile.contact.email}`} className={t.ctaOutline}>
+              <EnvelopeSimple size={14} aria-hidden />
+              Get in touch
+            </a>
+          )}
+        </div>
+      </header>
+
+      {/* ── Content zone (chalk white) ────────────────────────────────── */}
+      <div className={t.stackMain}>
+
+        {/* ── PROJECTS ── */}
+        {profile.projects.length > 0 && (
+          <>
+            <ChapterAnchor n={1} label="Work" />
+            <div className="flex flex-col gap-0 pb-4">
+              {profile.projects.map((project, idx) => {
+                const isEven = idx % 2 === 0;
+                const accent = ACCENTS[idx % ACCENTS.length]!;
+
+                return (
+                  <article
+                    key={project.title}
+                    className={`${isEven ? t.projectCard : t.projectCardAlt} relative`}
+                    style={{ borderLeft: `3px solid ${accent}` }}
+                  >
+                    {/* Index badge */}
+                    <p
+                      className="mb-3 text-[10px] font-bold uppercase tracking-[0.3em]"
+                      style={{ color: accent }}
+                    >
+                      {String(idx + 1).padStart(2, "0")}
+                    </p>
+
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
+                      {/* Left: title + summary + stack */}
+                      <div>
+                        <h3
+                          className="text-[clamp(28px,4vw,52px)] font-normal leading-[0.95] tracking-[0.02em]"
+                          style={{ fontFamily: t.fontDisplay || undefined }}
+                        >
+                          {project.title}
+                        </h3>
+                        <p className="mt-3 text-sm font-light leading-relaxed opacity-50">
+                          {project.summary}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          {project.techStack.map((tech) => (
+                            <span key={tech} className={t.chip}>{tech}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Right: PSI + links */}
+                      {!recruiterMode && (
+                        <div className="flex flex-col gap-3 border-t border-current/10 pt-4 lg:border-0 lg:pt-0 lg:border-l lg:pl-6">
+                          {[
+                            { label: "Problem", value: project.problem },
+                            { label: "Solution", value: project.solution },
+                            { label: "Impact", value: project.impact },
+                          ].map(({ label, value }) => (
+                            <div key={label}>
+                              <p
+                                className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.3em]"
+                                style={{ color: accent, opacity: 0.7 }}
+                              >
+                                {label}
+                              </p>
+                              <p className="text-xs font-light leading-relaxed opacity-45">{value}</p>
+                            </div>
+                          ))}
+                          <div className="mt-2 flex gap-2">
+                            {project.demoUrl && (
+                              <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="Demo">
+                                <ArrowUpRight size={12} aria-hidden />
+                              </a>
+                            )}
+                            {project.githubUrl && (
+                              <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="GitHub">
+                                <GithubLogo size={12} aria-hidden />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ── SKILLS — dense bordered grid ── */}
+        {!recruiterMode && skillGroups.length > 0 && (
+          <>
+            <ChapterAnchor n={2} label="Skills" />
+            <div className="grid grid-cols-2 gap-0 border-2 border-[#111111] mb-16 lg:grid-cols-4">
+              {skillGroups.map((group, gi) => (
+                <div
+                  key={group.label}
+                  className={`p-5 ${gi < skillGroups.length - 1 ? "border-b-2 lg:border-b-0 lg:border-r-2 border-[#111111]" : ""}`}
+                >
+                  <p
+                    className="mb-3 text-[9px] font-bold uppercase tracking-[0.38em]"
+                    style={{ color: ACCENTS[gi % ACCENTS.length] }}
+                  >
+                    {group.label}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.values.map((value) => (
+                      <span key={value} className={t.chip}>{value}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── EXPERIENCE — dark band ── */}
+        {!recruiterMode && profile.experiences.length > 0 && (
+          <>
+            <ChapterAnchor n={3} label="Experience" />
+            <div className="mb-16 -mx-6 bg-[#111111] px-6 py-8 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
+              <div className="flex flex-col gap-0">
+                {profile.experiences.map((exp, ei) => (
+                  <div
+                    key={`${exp.role}-${exp.org}`}
+                    className={`grid grid-cols-1 gap-4 py-7 lg:grid-cols-[200px_1fr] lg:gap-10 ${ei < profile.experiences.length - 1 ? "border-b border-white/8" : ""}`}
+                  >
+                    <div>
+                      <p
+                        className="text-xl font-normal leading-tight text-[#f5f5f0]/85"
+                        style={{ fontFamily: t.fontDisplay || undefined }}
+                      >
+                        {exp.role}
+                      </p>
+                      <p
+                        className="mt-1 text-sm font-medium"
+                        style={{ color: ACCENTS[ei % ACCENTS.length] }}
+                      >
+                        {exp.org}
+                      </p>
+                      <p className="mt-1 text-[11px] tabular-nums text-[#f5f5f0]/25">{exp.period}</p>
+                    </div>
+                    <ul className="flex flex-col gap-2">
+                      {exp.bullets.map((bullet) => (
+                        <li key={bullet} className="flex gap-2.5 text-sm font-light leading-relaxed text-[#f5f5f0]/40">
+                          <span
+                            className="mt-[7px] h-px w-3 shrink-0"
+                            style={{ background: ACCENTS[ei % ACCENTS.length], opacity: 0.5 }}
+                            aria-hidden
+                          />
+                          {bullet}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── CONNECT ── */}
+        {contactLinks.length > 0 && (
+          <>
+            <ChapterAnchor n={4} label="Connect" />
+            <div className="grid grid-cols-1 gap-1 pb-16 sm:grid-cols-2 lg:grid-cols-3">
+              {contactLinks.map((entry) => (
+                <a
+                  key={`${entry.type}-${entry.href}`}
+                  href={entry.href}
+                  target={entry.type !== "email" ? "_blank" : undefined}
+                  rel="noopener noreferrer"
+                  className={t.linkRow}
+                >
+                  <span className={t.linkRowIcon}><ContactIcon type={entry.type} /></span>
+                  <span className="flex-1 truncate text-sm font-medium">{entry.label}</span>
+                  <ArrowUpRight size={12} className="shrink-0 opacity-30" aria-hidden />
+                </a>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── FOOTER ── */}
+        {profile.plan === "free" && !recruiterMode && (
+          <footer className={t.footer}>
+            Built with{" "}
+            <Link href="/" className="underline underline-offset-4 opacity-60 hover:opacity-100">
+              foliopage
+            </Link>
+          </footer>
+        )}
+      </div>
     </div>
   );
 }

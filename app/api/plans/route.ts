@@ -12,9 +12,8 @@ export async function GET(request: NextRequest) {
   return ok({
     ...plan,
     pricing: {
-      proMonthly: 6,
-      proAnnual: 29,
+      proMonthly: 499,
+      proAnnual: 4999,
     },
   });
 }
-

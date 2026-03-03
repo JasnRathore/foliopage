@@ -18,6 +18,10 @@ interface CreateProfileBody {
   accentColor?: AccentColor;
   templateId?: ProfileTemplateId;
   resumeBlockType?: ResumeBlockType;
+  profileImageUrl?: string;
+  profileImageVisible?: boolean;
+  bgImageUrl?: string;
+  bgImageOverlay?: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -62,6 +66,10 @@ export async function POST(request: NextRequest) {
       accentColor: body.accentColor!,
       templateId: body.templateId,
       resumeBlockType: body.resumeBlockType,
+      profileImageUrl: body.profileImageUrl,
+      profileImageVisible: body.profileImageVisible,
+      bgImageUrl: body.bgImageUrl,
+      bgImageOverlay: body.bgImageOverlay,
     });
 
     return ok({ profile }, 201);

@@ -1,4 +1,8 @@
-import type { ProfileTemplateId } from "@/lib/profile-templates";
+import {
+  defaultProfileTemplateId,
+  listTemplates,
+  type ProfileTemplateId,
+} from "@/lib/profile-templates";
 
 export type PlanType = "free" | "pro";
 export type AccentColor = "blue" | "purple" | "emerald" | "black";
@@ -53,6 +57,7 @@ export interface DbProfile {
   slug: string;
   name: string;
   headline: string;
+  summary: string;
   university: string;
   gradYear: string;
   internshipStatus: string;
@@ -63,6 +68,10 @@ export interface DbProfile {
   updatedAt: string;
   skills: DbProfileSkills;
   resume: DbResume | null;
+  profileImageUrl: string;
+  profileImageVisible: boolean;
+  bgImageUrl: string;
+  bgImageOverlay: number;
   contactEmail: string;
   emailVisible: boolean;
   resumeBlockType: ResumeBlockType;
@@ -87,24 +96,34 @@ interface CreateProfileInput {
   slug: string;
   name: string;
   headline: string;
+  summary: string;
   university: string;
   gradYear: string;
   internshipStatus: string;
   accentColor: AccentColor;
   templateId?: ProfileTemplateId;
   resumeBlockType?: ResumeBlockType;
+  profileImageUrl?: string;
+  profileImageVisible?: boolean;
+  bgImageUrl?: string;
+  bgImageOverlay?: number;
 }
 
 interface UpdateProfileInput {
   slug?: string;
   name?: string;
   headline?: string;
+  summary?: string;
   university?: string;
   gradYear?: string;
   internshipStatus?: string;
   accentColor?: AccentColor;
   templateId?: ProfileTemplateId;
   resumeBlockType?: ResumeBlockType;
+  profileImageUrl?: string;
+  profileImageVisible?: boolean;
+  bgImageUrl?: string;
+  bgImageOverlay?: number;
   contactEmail?: string;
   emailVisible?: boolean;
   socials?: Partial<Record<SocialPlatform, Partial<DbSocialLink>>>;
@@ -138,6 +157,7 @@ interface PublicProfileResponse {
   slug: string;
   name: string;
   headline: string;
+  summary: string;
   university: string;
   gradYear: string;
   internshipStatus: string;
@@ -145,6 +165,9 @@ interface PublicProfileResponse {
   templateId: ProfileTemplateId;
   skills: DbProfileSkills;
   resume: DbResume | null;
+  profileImageUrl: string | null;
+  bgImageUrl: string | null;
+  bgImageOverlay: number;
   projects: DbProject[];
   contact: {
     email: string | null;
@@ -271,24 +294,29 @@ function normalizeResumeBlockType(value: unknown): ResumeBlockType {
   return value === "with_preview" ? "with_preview" : "without_preview";
 }
 
-const profileTemplateIds = [
-  "linkboard",
-  "dusk",
-  "chalk",
-  "forest",
-  "neon",
-  "ivory",
-  "blueprint",
-  "terracotta",
-  "void",
-  "candy",
-] as const satisfies readonly ProfileTemplateId[];
+function normalizeProfileImageUrl(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeBgImageUrl(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeBgImageOverlay(value: unknown): number {
+  const raw = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(raw)) return 50;
+  return Math.max(0, Math.min(100, Math.round(raw)));
+}
+
+const profileTemplateIds = new Set<ProfileTemplateId>(
+  listTemplates().map((template) => template.id),
+);
 
 function normalizeTemplateId(value: unknown): ProfileTemplateId {
-  if (typeof value === "string" && profileTemplateIds.includes(value as ProfileTemplateId)) {
+  if (typeof value === "string" && profileTemplateIds.has(value as ProfileTemplateId)) {
     return value as ProfileTemplateId;
   }
-  return "linkboard";
+  return defaultProfileTemplateId;
 }
 
 function normalizeProfileSkills(input: DbProfileSkills | string[]): DbProfileSkills {
@@ -313,6 +341,18 @@ function withProfileDefaults(profile: DbProfile): DbProfile {
     ...profile,
     templateId: normalizeTemplateId(
       (profile as DbProfile & { templateId?: unknown }).templateId,
+    ),
+    profileImageUrl: normalizeProfileImageUrl(
+      (profile as DbProfile & { profileImageUrl?: unknown }).profileImageUrl,
+    ),
+    profileImageVisible: Boolean(
+      (profile as DbProfile & { profileImageVisible?: unknown }).profileImageVisible === true,
+    ),
+    bgImageUrl: normalizeBgImageUrl(
+      (profile as DbProfile & { bgImageUrl?: unknown }).bgImageUrl,
+    ),
+    bgImageOverlay: normalizeBgImageOverlay(
+      (profile as DbProfile & { bgImageOverlay?: unknown }).bgImageOverlay,
     ),
     contactEmail: profile.contactEmail ?? "",
     emailVisible: profile.emailVisible ?? true,
@@ -488,6 +528,7 @@ export function createProfile(userId: string, input: CreateProfileInput): DbProf
     slug: input.slug,
     name: input.name,
     headline: input.headline,
+    summary: input.summary,
     university: input.university,
     gradYear: input.gradYear,
     internshipStatus: input.internshipStatus,
@@ -498,6 +539,10 @@ export function createProfile(userId: string, input: CreateProfileInput): DbProf
     updatedAt: createdAt,
     skills: createDefaultSkills(),
     resume: null,
+    profileImageUrl: normalizeProfileImageUrl(input.profileImageUrl),
+    profileImageVisible: input.profileImageVisible === true,
+    bgImageUrl: normalizeBgImageUrl(input.bgImageUrl),
+    bgImageOverlay: normalizeBgImageOverlay(input.bgImageOverlay),
     contactEmail: "",
     emailVisible: true,
     resumeBlockType: normalizeResumeBlockType(input.resumeBlockType),
@@ -539,6 +584,8 @@ export function updateProfile(
   const updated: DbProfile = {
     ...profile,
     ...input,
+    summary:
+      input.summary !== undefined ? input.summary : profile.summary,
     templateId:
       input.templateId !== undefined
         ? normalizeTemplateId(input.templateId)
@@ -547,6 +594,22 @@ export function updateProfile(
       input.resumeBlockType !== undefined
         ? normalizeResumeBlockType(input.resumeBlockType)
         : profile.resumeBlockType,
+    profileImageUrl:
+      input.profileImageUrl !== undefined
+        ? normalizeProfileImageUrl(input.profileImageUrl)
+        : profile.profileImageUrl,
+    profileImageVisible:
+      input.profileImageVisible !== undefined
+        ? input.profileImageVisible === true
+        : profile.profileImageVisible,
+    bgImageUrl:
+      input.bgImageUrl !== undefined
+        ? normalizeBgImageUrl(input.bgImageUrl)
+        : profile.bgImageUrl,
+    bgImageOverlay:
+      input.bgImageOverlay !== undefined
+        ? normalizeBgImageOverlay(input.bgImageOverlay)
+        : profile.bgImageOverlay,
     contactEmail:
       input.contactEmail !== undefined ? input.contactEmail.trim() : profile.contactEmail,
     emailVisible:
@@ -802,6 +865,7 @@ export function getPublicProfileBySlug(
     slug: safeProfile.slug,
     name: safeProfile.name,
     headline: safeProfile.headline,
+    summary: safeProfile.summary,
     university: safeProfile.university,
     gradYear: safeProfile.gradYear,
     internshipStatus: safeProfile.internshipStatus,
@@ -809,6 +873,12 @@ export function getPublicProfileBySlug(
     templateId: safeProfile.templateId,
     skills: recruiterView ? createDefaultSkills() : safeProfile.skills,
     resume: safeProfile.resume,
+    profileImageUrl:
+      safeProfile.profileImageVisible && safeProfile.profileImageUrl
+        ? safeProfile.profileImageUrl
+        : null,
+    bgImageUrl: safeProfile.bgImageUrl || null,
+    bgImageOverlay: safeProfile.bgImageOverlay,
     projects,
     contact: {
       email: safeProfile.emailVisible ? emailValue : null,
@@ -840,7 +910,7 @@ function seedDemoData() {
   if (usersById.size > 0) {
     return;
   }
-
+  /*
   const user = signUp("demo@foliopage.app", "demo-pass");
   const profile = createProfile(user.id, {
     slug: "ava-chen",
@@ -872,6 +942,7 @@ function seedDemoData() {
   });
 
   setPublished(profile.id, user.id, true);
+  */
 }
 
 seedDemoData();

@@ -71,6 +71,9 @@ export interface ProfileData {
   internshipStatus: string;
   accentColor: AccentColor;
   templateId?: ProfileTemplateId;
+  profileImageUrl?: string;
+  bgImageUrl?: string;         // background image for layouts that support it
+  bgImageOverlay?: number;     // 0–100 overlay darkness, default 50
   plan: PlanType;
   summary: string;
   resume: ResumeData;
@@ -122,6 +125,7 @@ const profiles: ProfileData[] = [
     internshipStatus: "Seeking Summer 2026 internship",
     accentColor: "blue",
     templateId: "linkboard",
+    profileImageUrl: "https://i.pravatar.cc/300?img=5",
     plan: "free",
     summary:
       "I build practical products with clear UX and measurable outcomes. My focus is full-stack web apps and collaboration-heavy engineering work.",
@@ -271,6 +275,7 @@ const profiles: ProfileData[] = [
     internshipStatus: "Open to Fall 2026 co-op",
     accentColor: "emerald",
     templateId: "linkboard",
+    profileImageUrl: "https://i.pravatar.cc/300?img=8",
     plan: "pro",
     summary:
       "I build software that is easy to adopt and hard to break. I care about maintainable systems and practical product detail.",

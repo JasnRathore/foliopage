@@ -133,12 +133,17 @@ export interface ProfilePayload {
   slug?: string;
   name?: string;
   headline?: string;
+  summary?: string;
   university?: string;
   gradYear?: string;
   internshipStatus?: string;
   accentColor?: AccentColor;
   templateId?: ProfileTemplateId;
   resumeBlockType?: ResumeBlockType;
+  profileImageUrl?: string;
+  profileImageVisible?: boolean;
+  bgImageUrl?: string;
+  bgImageOverlay?: number;
   contactEmail?: string;
   emailVisible?: boolean;
   socials?: Partial<{
@@ -172,6 +177,21 @@ export function updateProfileApi(
 ): Promise<{ profile: DbProfile }> {
   return request(`/api/profiles/${profileId}`, {
     method: "PATCH",
+    token,
+    body: payload,
+  });
+}
+
+export function uploadBackgroundImageApi(
+  token: string,
+  payload: {
+    dataUrl: string;
+    profileId?: string;
+    previousUrl?: string;
+  },
+): Promise<{ url: string }> {
+  return request("/api/backgrounds", {
+    method: "POST",
     token,
     body: payload,
   });
@@ -313,6 +333,7 @@ export interface PublicProfileApi {
   slug: string;
   name: string;
   headline: string;
+  summary: string;
   university: string;
   gradYear: string;
   internshipStatus: string;
@@ -325,6 +346,9 @@ export interface PublicProfileApi {
     fileSizeKb: number;
     updatedAt: string;
   } | null;
+  profileImageUrl: string | null;
+  bgImageUrl: string | null;
+  bgImageOverlay: number;
   projects: DbProject[];
   contact: {
     email: string | null;
