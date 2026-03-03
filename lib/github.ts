@@ -17,6 +17,7 @@ const IMAGE_MIME_TO_EXT: Record<string, string> = {
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_BACKGROUND_BYTES = 8 * 1024 * 1024;
+const MAX_RESUME_BYTES = 5 * 1024 * 1024;
 
 const contentOctokit = new Octokit({
   auth: GITHUB_CONTENT_AUTH_TOKEN,
@@ -79,6 +80,14 @@ function parseImageDataUrl(dataUrl: string): { mime: string; buffer: Buffer } {
     throw new Error("Unsupported profile image format.");
   }
   return { mime, buffer: Buffer.from(base64, "base64") };
+}
+
+function parsePdfDataUrl(dataUrl: string): Buffer {
+  const match = dataUrl.match(/^data:application\/pdf;base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) {
+    throw new Error("Invalid resume payload.");
+  }
+  return Buffer.from(match[1], "base64");
 }
 
 async function getExistingSha(
@@ -254,4 +263,45 @@ export async function resolveBackgroundImageUrl(
   };
 
   return `https://cdn.jsdelivr.net/gh/${GitInfo.content_owner}/${GitInfo.content_repo}@${GitInfo.content_branch}/${rootFolder}backgrounds/${proj.imageSrc}`;
+}
+
+export async function resolveResumeFileUrl(
+  resumeFileUrl: string,
+  options: { profileId?: string; username?: string } = {},
+): Promise<string> {
+  const value = resumeFileUrl.trim();
+  if (!value) return "";
+  if (isDirectUrl(value)) return value;
+  if (!value.startsWith("data:application/pdf;base64,")) return value;
+
+  ensureGitCredentials();
+  const buffer = parsePdfDataUrl(value);
+  if (buffer.length === 0) {
+    throw new Error("Resume payload is empty.");
+  }
+  if (buffer.length > MAX_RESUME_BYTES) {
+    throw new Error("Resume must be under 5MB.");
+  }
+
+  const base = sanitizeSegment(options.profileId) || sanitizeSegment(options.username) || "resume";
+  const usernameFolder = `${sanitizeSegment(options.username) || base}/`;
+  const fileName = `${base}-resume-${Date.now()}-${randomUUID().slice(0, 8)}.pdf`;
+  const filePath = `${usernameFolder}${fileName}`;
+
+  const uploaded = await uploadGitHubFile({
+    owner: GitInfo.content_owner,
+    repo: GitInfo.content_repo,
+    filePath,
+    message: `Upload resume ${fileName}`,
+    content: buffer,
+    branch: GitInfo.content_branch,
+  });
+
+  const proj = {
+    fileSrc: uploaded.path.startsWith(usernameFolder)
+      ? uploaded.path.slice(usernameFolder.length)
+      : uploaded.path,
+  };
+
+  return `https://cdn.jsdelivr.net/gh/${GitInfo.content_owner}/${GitInfo.content_repo}@${GitInfo.content_branch}/${usernameFolder}${proj.fileSrc}`;
 }

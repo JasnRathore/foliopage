@@ -341,6 +341,13 @@ const LAYOUT_ORDER: ProfileLayoutVariant[] = [
   "split", "scrollytelling", "modular", "fullscreen", "zpattern", "fpattern",
 ];
 
+function randomIndex(max: number): number {
+  if (max <= 1) return 0;
+  const buffer = new Uint32Array(1);
+  crypto.getRandomValues(buffer);
+  return buffer[0] % max;
+}
+
 export function TemplatePicker({
   value,
   currentTemplateId,
@@ -363,6 +370,20 @@ export function TemplatePicker({
 
   const selectedTemplate = resolveProfileTemplate(selectedTemplateId);
   const showBgUpload = selectedTemplate.requiresBgImage === true;
+  const randomEligibleTemplates = allTemplates.filter((template) => !template.requiresBgImage);
+
+  function pickRandomTheme(): void {
+    if (randomEligibleTemplates.length === 0) return;
+    const candidates =
+      randomEligibleTemplates.length > 1
+        ? randomEligibleTemplates.filter((template) => template.id !== selectedTemplateId)
+        : randomEligibleTemplates;
+    const selected =
+      candidates[randomIndex(candidates.length)] ?? randomEligibleTemplates[0];
+    if (selected) {
+      handleChange(selected.id);
+    }
+  }
 
   const byLayout = LAYOUT_ORDER.reduce<Record<ProfileLayoutVariant, typeof allTemplates>>(
     (acc, layout) => {
@@ -384,14 +405,23 @@ export function TemplatePicker({
             <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#0e0e0e]/35">Appearance</p>
             <h3 className="mt-0.5 text-sm font-black text-[#0e0e0e]">Choose a template</h3>
           </div>
-          {selectedTemplateId && (
-            <div className="flex items-center gap-2">
-              <ThemeSwatches colors={TEMPLATE_THEME_SWATCHES[selectedTemplateId]} />
-              <span className="font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/40">
-                {selectedTemplate.label}
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={pickRandomTheme}
+              className="border border-[#0e0e0e]/12 bg-white px-3 py-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-[#0e0e0e]/50 transition-all hover:border-[#0e0e0e]/25 hover:text-[#0e0e0e]"
+            >
+              Random theme
+            </button>
+            {selectedTemplateId && (
+              <div className="flex items-center gap-2">
+                <ThemeSwatches colors={TEMPLATE_THEME_SWATCHES[selectedTemplateId]} />
+                <span className="font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/40">
+                  {selectedTemplate.label}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

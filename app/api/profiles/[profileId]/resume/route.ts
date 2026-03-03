@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { deleteResume, upsertResume } from "@/lib/db";
+import { deleteResume, getProfileForUser, upsertResume } from "@/lib/db";
+import { resolveResumeFileUrl } from "@/lib/github";
 import { fail, ok, readJson, requireAuth } from "@/lib/api-route-utils";
 
 const MAX_FILE_SIZE_KB = 5120;
@@ -16,10 +17,10 @@ interface RouteContext {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   const auth = await requireAuth(request);
-  if (auth.response) {
-    return auth.response;
+  if (auth.response || !auth.user) {
+    return auth.response ?? fail("Unauthorized.", 401);
   }
-  const user = auth.user as any;
+  const user = auth.user;
 
   try {
     const body = await readJson<ResumeBody>(request);
@@ -35,10 +36,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const { profileId } = await context.params;
+    const profileForUser = await getProfileForUser(profileId, user.id);
+    const resolvedFileUrl =
+      body.fileUrl !== undefined
+        ? await resolveResumeFileUrl(body.fileUrl, {
+            profileId,
+            username: profileForUser.slug,
+          })
+        : undefined;
+
     const profile = await upsertResume(profileId, user.id, {
       fileName,
       fileSizeKb,
-      fileUrl: body.fileUrl,
+      fileUrl: resolvedFileUrl,
     });
     return ok({ profile });
   } catch (error) {
@@ -48,10 +58,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   const auth = await requireAuth(request);
-  if (auth.response) {
-    return auth.response;
+  if (auth.response || !auth.user) {
+    return auth.response ?? fail("Unauthorized.", 401);
   }
-  const user = auth.user as any;
+  const user = auth.user;
 
   try {
     const { profileId } = await context.params;
@@ -61,4 +71,3 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return fail((error as Error).message, 400);
   }
 }
-

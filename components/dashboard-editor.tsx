@@ -528,7 +528,12 @@ export function DashboardEditor() {
       await updateProfileApi(token, profileId, { ...base, bgImageUrl: bgUrl });
 
       if (pendingResumeFile) {
-        await upsertResumeApi(token, profileId, { fileName: pendingResumeFile.name, fileSizeKb: Math.round(pendingResumeFile.size / 1024) });
+        const resumeDataUrl = await readFileAsDataUrl(pendingResumeFile);
+        await upsertResumeApi(token, profileId, {
+          fileName: pendingResumeFile.name,
+          fileSizeKb: Math.round(pendingResumeFile.size / 1024),
+          fileUrl: resumeDataUrl,
+        });
         setPendingResumeFile(null);
       } else if (resumeRemoved) {
         await deleteResumeApi(token, profileId); setResumeRemoved(false);
