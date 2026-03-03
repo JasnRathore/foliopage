@@ -5,6 +5,7 @@ import {
   type FormEvent, type KeyboardEvent,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   createDefaultDraft, createProjectDraft,
   parseSkills, slugifyName, type ProfileDraft,
@@ -13,10 +14,10 @@ import { TemplatePicker } from "@/components/TemplatePicker";
 import { defaultProfileTemplateId } from "@/lib/profile-templates";
 import type { CheckoutPlan, DbProfile, DbProject, PlanType } from "@/lib/db";
 import {
-  ApiClientError, createCheckoutSessionApi, createProfileApi, createProjectApi,
+  ApiClientError, checkProfileSlugAvailability, createCheckoutSessionApi, createProfileApi, createProjectApi,
   deleteProfileApi, deleteProjectApi, deleteResumeApi, getMe, getPlans, getProfile,
   listProfiles, listProjectsApi, processBillingWebhookApi, reorderProjectsApi,
-  resetPassword, setPublishedApi, setSkillsApi, signIn, uploadBackgroundImageApi,
+  requestPasswordResetOtp, resetPassword, setPublishedApi, setSkillsApi, signIn, uploadBackgroundImageApi,
   updateProfileApi, updateProjectApi, upsertResumeApi,
 } from "@/lib/site-api";
 import {
@@ -45,6 +46,7 @@ type SkillCategory = "languages" | "frameworks" | "tools" | "other";
 const EMPTY_SKILLS: Record<SkillCategory, string> = { languages: "", frameworks: "", tools: "", other: "" };
 
 type NavSection = "profile" | "resume" | "contact" | "projects" | "appearance" | "settings";
+type SlugCheckState = "idle" | "checking" | "available" | "taken" | "error";
 
 const NAV_ITEMS: { id: NavSection; label: string; Icon: React.ElementType }[] = [
   { id: "profile", label: "Profile", Icon: UserCircle },
@@ -222,10 +224,13 @@ function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error";
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function DashboardEditor() {
+  const router = useRouter();
   const [token, setToken] = useState("");
   const [authEmail, setAuthEmail] = useState("demo@foliopage.app");
   const [authPassword, setAuthPassword] = useState("demo-pass");
   const [resetValue, setResetValue] = useState("");
+  const [authResetOtp, setAuthResetOtp] = useState("");
+  const [authResetOtpRequested, setAuthResetOtpRequested] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -241,6 +246,10 @@ export function DashboardEditor() {
   const checkoutPlan: CheckoutPlan = "pro_monthly";
   const [activeSection, setActiveSection] = useState<NavSection>("profile");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [slugCheckState, setSlugCheckState] = useState<SlugCheckState>("idle");
+  const [slugCheckError, setSlugCheckError] = useState("");
+  const [lastCheckedSlug, setLastCheckedSlug] = useState("");
+  const slugCheckRequestIdRef = useRef(0);
 
   const skillsByCategory = useMemo(() => ({
     languages: dedupeSkills(parseSkills(draft.skillsLanguagesInput)),
@@ -250,10 +259,11 @@ export function DashboardEditor() {
   }), [draft.skillsLanguagesInput, draft.skillsFrameworksInput, draft.skillsToolsInput, draft.skillsOtherInput]);
 
   const maxProjects = plans?.limits.maxProjects ?? 3;
+  const normalizedSlug = slugifyName(draft.slug);
   const hasInfo = Boolean(draft.fullName.trim() && draft.headline.trim() && draft.summary.trim() && draft.university.trim() && draft.gradYear.trim() && slugifyName(draft.slug));
   const hasResume = Boolean(draft.resumeFileName);
   const hasProject = draft.projects.some((p) => p.title.trim() && p.summary.trim());
-  const publicPath = `/${slugifyName(draft.slug) || "your-name"}`;
+  const publicPath = `/${normalizedSlug || "your-name"}`;
 
   const completionSteps = [
     { label: "Basic info", done: hasInfo, section: "profile" as NavSection },
@@ -272,6 +282,24 @@ export function DashboardEditor() {
   const sectionDone: Partial<Record<NavSection, boolean>> = {
     profile: hasInfo, resume: hasResume, projects: hasProject,
   };
+
+  const slugAvailabilityMessage = (() => {
+    if (!normalizedSlug) return "Use lowercase letters, numbers, and hyphens.";
+    if (slugCheckState === "checking" && lastCheckedSlug === normalizedSlug) return "Checking availability...";
+    if (slugCheckState === "available" && lastCheckedSlug === normalizedSlug) return "Public URL is available.";
+    if (slugCheckState === "taken" && lastCheckedSlug === normalizedSlug) return "This public URL is already taken.";
+    if (slugCheckState === "error" && lastCheckedSlug === normalizedSlug) return slugCheckError || "Could not verify URL availability.";
+    return "Keep typing to check availability.";
+  })();
+
+  const slugAvailabilityClass =
+    slugCheckState === "available" && lastCheckedSlug === normalizedSlug
+      ? "text-emerald-600"
+      : slugCheckState === "taken" && lastCheckedSlug === normalizedSlug
+        ? "text-[#e8320a]"
+        : slugCheckState === "error" && lastCheckedSlug === normalizedSlug
+          ? "text-[#e8320a]"
+          : "text-[#0e0e0e]/35";
 
   // ── Data ────────────────────────────────────────────────────────────────────
   const loadProfile = useCallback(async (tok: string, profileId: string, planType: PlanType) => {
@@ -309,6 +337,44 @@ export function DashboardEditor() {
     setToken(tok); void bootstrap(tok);
   }, [bootstrap]);
 
+  useEffect(() => {
+    if (!token) return;
+    if (!normalizedSlug) {
+      setSlugCheckState("idle");
+      setSlugCheckError("");
+      setLastCheckedSlug("");
+      return;
+    }
+
+    const requestId = slugCheckRequestIdRef.current + 1;
+    slugCheckRequestIdRef.current = requestId;
+    setSlugCheckState("checking");
+    setSlugCheckError("");
+    setLastCheckedSlug(normalizedSlug);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await checkProfileSlugAvailability(
+          token,
+          normalizedSlug,
+          activeProfileId ?? undefined,
+        );
+        if (slugCheckRequestIdRef.current !== requestId) return;
+        setLastCheckedSlug(result.slug);
+        setSlugCheckState(result.available ? "available" : "taken");
+      } catch (error) {
+        if (slugCheckRequestIdRef.current !== requestId) return;
+        setLastCheckedSlug(normalizedSlug);
+        setSlugCheckState("error");
+        setSlugCheckError(toError(error));
+      }
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [activeProfileId, normalizedSlug, token]);
+
   // ⌘S shortcut
   useEffect(() => {
     const h = (e: globalThis.KeyboardEvent) => {
@@ -332,9 +398,19 @@ export function DashboardEditor() {
   async function onReset(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); setAuthLoading(true);
     try {
-      await resetPassword(authEmail, resetValue);
+      if (!authResetOtpRequested) {
+        await requestPasswordResetOtp(authEmail);
+        setAuthResetOtpRequested(true);
+        setToast({ msg: "OTP sent. Enter it to complete password reset.", type: "success" });
+        return;
+      }
+      if (!authResetOtp.trim()) {
+        throw new Error("Enter the OTP sent to your email.");
+      }
+      await resetPassword(authEmail, resetValue, authResetOtp.trim());
       setToast({ msg: "Password reset! Sign in with your new password.", type: "success" });
       setAuthPassword(resetValue); setResetValue("");
+      setAuthResetOtp(""); setAuthResetOtpRequested(false);
     } catch (err) { setToast({ msg: toError(err), type: "error" }); }
     finally { setAuthLoading(false); }
   }
@@ -343,6 +419,7 @@ export function DashboardEditor() {
     localStorage.removeItem(SESSION_KEY);
     setToken(""); setUser(null); setPlans(null); setProfiles([]);
     setActiveProfileId(null); setDraft(createDefaultDraft()); setSkillInputs({ ...EMPTY_SKILLS });
+    router.replace("/sign-up");
   }
 
   // ── Files ───────────────────────────────────────────────────────────────────
@@ -426,6 +503,10 @@ export function DashboardEditor() {
       };
       if (!base.slug || !base.name || !base.headline || !base.summary || !base.university || !base.gradYear)
         throw new Error("Fill in all required fields before saving.");
+      const slugCheck = await checkProfileSlugAvailability(token, base.slug, activeProfileId ?? undefined);
+      if (!slugCheck.available) {
+        throw new Error("This public URL is already taken. Pick a different one.");
+      }
 
       let profileId = activeProfileId;
       if (!profileId) {
@@ -554,8 +635,20 @@ export function DashboardEditor() {
               <form onSubmit={onReset} className="space-y-4 bg-[#f8f6f0] p-6">
                 <h2 className="text-[13px] font-black text-[#0e0e0e]">Reset password</h2>
                 <Field label="New password"><input type="password" className={inputCls} placeholder="Set a new password" value={resetValue} onChange={(e) => setResetValue(e.target.value)} /></Field>
+                {authResetOtpRequested && (
+                  <Field label="Email OTP">
+                    <input
+                      className={inputCls}
+                      placeholder="6-digit code"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      value={authResetOtp}
+                      onChange={(e) => setAuthResetOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    />
+                  </Field>
+                )}
                 <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <button disabled={authLoading} className="border border-[#0e0e0e]/12 px-4 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest text-[#0e0e0e]/45 transition-all hover:border-[#0e0e0e]/28 hover:text-[#0e0e0e] disabled:opacity-55">{authLoading ? "Resetting…" : "Reset"}</button>
+                  <button disabled={authLoading} className="border border-[#0e0e0e]/12 px-4 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest text-[#0e0e0e]/45 transition-all hover:border-[#0e0e0e]/28 hover:text-[#0e0e0e] disabled:opacity-55">{authLoading ? "Resetting…" : authResetOtpRequested ? "Verify OTP & reset" : "Send OTP"}</button>
                   <Link href="/sign-up" className="font-mono text-[10px] uppercase tracking-widest text-[#0e0e0e]/30 hover:text-[#0e0e0e] transition-colors">Sign up →</Link>
                 </div>
               </form>
@@ -586,6 +679,9 @@ export function DashboardEditor() {
                 <span className="flex shrink-0 items-center border border-r-0 border-[#0e0e0e]/12 bg-[#f8f6f0] px-3 font-mono text-[10px] text-[#0e0e0e]/32">foliopage.app/</span>
                 <input className="flex-1 border border-[#0e0e0e]/12 bg-white px-3 py-2.5 font-mono text-sm text-[#0e0e0e] outline-none transition-all focus:border-[#0e0e0e]/30 focus:ring-2 focus:ring-[#0e0e0e]/5" placeholder="your-name" value={draft.slug} onChange={(e) => setDraft((p) => ({ ...p, slug: slugifyName(e.target.value) }))} />
               </div>
+              <p className={`font-mono text-[9px] ${slugAvailabilityClass}`}>
+                {slugAvailabilityMessage}
+              </p>
             </Field>
             <Field label="Status" className="sm:col-span-2">
               <select className={inputCls + " cursor-pointer"} value={draft.internshipStatus} onChange={(e) => setDraft((p) => ({ ...p, internshipStatus: toStatus(e.target.value) }))}>
@@ -1022,7 +1118,22 @@ export function DashboardEditor() {
             <button onClick={save} disabled={saving} className="border border-[#e8320a] bg-[#e8320a] px-3 py-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-white disabled:opacity-50">
               {saving ? "…" : "Save"}
             </button>
+            <button
+              onClick={signOut}
+              className="inline-flex items-center gap-1 border border-[#0e0e0e]/10 bg-white px-2.5 py-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-[#0e0e0e]/50 transition-colors hover:text-[#0e0e0e]"
+            >
+              <SignOut size={10} />
+              Out
+            </button>
           </div>
+
+          <button
+            onClick={signOut}
+            className="hidden lg:inline-flex items-center gap-1.5 border border-[#0e0e0e]/10 bg-white px-3 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-[#0e0e0e]/40 transition-all hover:border-[#0e0e0e]/20 hover:text-[#0e0e0e]"
+          >
+            <SignOut size={11} />
+            Sign out
+          </button>
         </header>
 
         {/* Content area */}

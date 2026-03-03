@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
-import { createSession, signUp } from "@/lib/db";
+import { createSession, signUp, verifyAndConsumeEmailOtp } from "@/lib/db";
 import { fail, ok, readJson } from "@/lib/api-route-utils";
 
 interface SignUpBody {
   email?: string;
   password?: string;
+  otp?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -12,13 +13,15 @@ export async function POST(request: NextRequest) {
     const body = await readJson<SignUpBody>(request);
     const email = body.email?.trim() ?? "";
     const password = body.password?.trim() ?? "";
+    const otp = body.otp?.trim() ?? "";
 
-    if (!email || !password) {
-      return fail("Email and password are required.", 422);
+    if (!email || !password || !otp) {
+      return fail("Email, password, and otp are required.", 422);
     }
 
-  const user = await signUp(email, password);
-  const session = await createSession(user.id);
+    await verifyAndConsumeEmailOtp(email, "sign_up", otp);
+    const user = await signUp(email, password);
+    const session = await createSession(user.id);
     return ok(
       {
         user: {
@@ -34,4 +37,3 @@ export async function POST(request: NextRequest) {
     return fail((error as Error).message, 400);
   }
 }
-

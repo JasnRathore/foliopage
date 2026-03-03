@@ -79,10 +79,24 @@ export interface SignInResponse {
   token: string;
 }
 
-export function signUp(email: string, password: string): Promise<SignInResponse> {
+export function requestSignUpOtp(email: string): Promise<{ sent: true; expiresInSeconds: number }> {
+  return request<{ sent: true; expiresInSeconds: number }>("/api/auth/otp/request", {
+    method: "POST",
+    body: { email, purpose: "sign_up" },
+  });
+}
+
+export function requestPasswordResetOtp(email: string): Promise<{ sent: true; expiresInSeconds: number }> {
+  return request<{ sent: true; expiresInSeconds: number }>("/api/auth/otp/request", {
+    method: "POST",
+    body: { email, purpose: "password_reset" },
+  });
+}
+
+export function signUp(email: string, password: string, otp: string): Promise<SignInResponse> {
   return request<SignInResponse>("/api/auth/sign-up", {
     method: "POST",
-    body: { email, password },
+    body: { email, password, otp },
   });
 }
 
@@ -96,12 +110,13 @@ export function signIn(email: string, password: string): Promise<SignInResponse>
 export function resetPassword(
   email: string,
   nextPassword: string,
+  otp: string,
 ): Promise<{ user: { id: string; email: string }; message: string }> {
   return request<{ user: { id: string; email: string }; message: string }>(
     "/api/auth/password-reset",
     {
       method: "POST",
-      body: { email, nextPassword },
+      body: { email, nextPassword, otp },
     },
   );
 }
@@ -128,6 +143,21 @@ export function getPlans(token: string): Promise<{
 
 export function listProfiles(token: string): Promise<{ profiles: DbProfile[] }> {
   return request("/api/profiles", { token, cache: "no-store" });
+}
+
+export function checkProfileSlugAvailability(
+  token: string,
+  slug: string,
+  excludeProfileId?: string,
+): Promise<{ slug: string; available: boolean }> {
+  const params = new URLSearchParams({ slug });
+  if (excludeProfileId) {
+    params.set("excludeProfileId", excludeProfileId);
+  }
+  return request(`/api/profiles/slug-availability?${params.toString()}`, {
+    token,
+    cache: "no-store",
+  });
 }
 
 export interface ProfilePayload {

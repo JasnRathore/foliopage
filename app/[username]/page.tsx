@@ -10,6 +10,12 @@ interface ProfilePageProps {
   searchParams: Promise<{ view?: string }>;
 }
 
+function resolvePngFavicon(profileImageUrl: string | null | undefined): Metadata["icons"] | undefined {
+  if (!profileImageUrl) return undefined;
+  if (!/\.png(?:$|[?#])/i.test(profileImageUrl)) return undefined;
+  return { icon: profileImageUrl };
+}
+
 function getApiBaseUrl(hostHeader: string | null, protoHeader: string | null): string {
   if (hostHeader) {
     const protocol = protoHeader ?? (hostHeader.includes("localhost") ? "http" : "https");
@@ -58,6 +64,27 @@ async function fetchPublicProfile(
   }
 
   return payload.data.profile;
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: ProfilePageProps): Promise<Metadata> {
+  const { username } = await params;
+  const query = await searchParams;
+  const recruiterMode = query.view === "recruiter";
+  const publicProfile = await fetchPublicProfile(username, recruiterMode);
+
+  if (!publicProfile) {
+    return {
+      title: "Profile Not Found | foliopage",
+    };
+  }
+
+  return {
+    title: `${publicProfile.name} | foliopage`,
+    icons: resolvePngFavicon(publicProfile.profileImageUrl),
+  };
 }
 
 export default async function ProfilePage({

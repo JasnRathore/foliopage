@@ -69,4 +69,16 @@ export async function ensureSchema(client: SqlClient): Promise<void> {
   await client.execute(`
     CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)
   `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS email_otps (
+      email TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      otp TEXT NOT NULL,
+      expiresAt TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      PRIMARY KEY (email, purpose)
+    )
+  `);
 }

@@ -156,22 +156,26 @@ export function getPlanLimits(planType: PlanType): { maxProjects: number } {
   return { maxProjects: 1000 };
 }
 
+function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 // --- Auth / users ---
 export async function signUp(email: string, password: string): Promise<DbUser> {
   const id = `user_${Math.random().toString(36).slice(2, 9)}`;
   const createdAt = nowIso();
   await turso.execute(`INSERT INTO users (id, email, password, planType, createdAt) VALUES (?, ?, ?, ?, ?)`, [
     id,
-    email.trim().toLowerCase(),
+    normalizeEmail(email),
     password,
     "free",
     createdAt,
   ]);
-  return { id, email: email.trim().toLowerCase(), password, planType: "free", createdAt };
+  return { id, email: normalizeEmail(email), password, planType: "free", createdAt };
 }
 
 export async function signIn(email: string, password: string): Promise<DbUser> {
-  const row = await queryOne<any>(`SELECT * FROM users WHERE lower(email) = lower(?)`, [email.trim()]);
+  const row = await queryOne<any>(`SELECT * FROM users WHERE lower(email) = lower(?)`, [normalizeEmail(email)]);
   if (!row || row.password !== password) {
     throw new Error("Invalid email or password.");
   }
@@ -179,10 +183,70 @@ export async function signIn(email: string, password: string): Promise<DbUser> {
 }
 
 export async function resetPassword(email: string, nextPassword: string): Promise<DbUser> {
-  const user = await queryOne<any>(`SELECT * FROM users WHERE lower(email) = lower(?)`, [email.trim()]);
+  const user = await queryOne<any>(`SELECT * FROM users WHERE lower(email) = lower(?)`, [normalizeEmail(email)]);
   if (!user) throw new Error("User not found.");
   await turso.execute(`UPDATE users SET password = ? WHERE id = ?`, [nextPassword, user.id]);
   return { id: user.id, email: user.email, password: nextPassword, planType: user.planType, createdAt: user.createdAt };
+}
+
+export async function isEmailRegistered(email: string): Promise<boolean> {
+  const user = await queryOne<any>(`SELECT id FROM users WHERE lower(email) = lower(?)`, [normalizeEmail(email)]);
+  return Boolean(user);
+}
+
+export async function upsertEmailOtp(
+  email: string,
+  purpose: string,
+  otp: string,
+  expiresAt: string,
+): Promise<void> {
+  const normalizedEmail = normalizeEmail(email);
+  await turso.execute(
+    `INSERT OR REPLACE INTO email_otps (email, purpose, otp, expiresAt, attempts, createdAt) VALUES (?, ?, ?, ?, 0, ?)`,
+    [normalizedEmail, purpose, otp, expiresAt, nowIso()],
+  );
+}
+
+export async function verifyAndConsumeEmailOtp(
+  email: string,
+  purpose: string,
+  otp: string,
+): Promise<void> {
+  const normalizedEmail = normalizeEmail(email);
+  const row = await queryOne<any>(
+    `SELECT * FROM email_otps WHERE email = ? AND purpose = ?`,
+    [normalizedEmail, purpose],
+  );
+  if (!row) {
+    throw new Error("OTP not found. Request a new code.");
+  }
+
+  const expiresAtMs = Date.parse(row.expiresAt ?? "");
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs < Date.now()) {
+    await turso.execute(`DELETE FROM email_otps WHERE email = ? AND purpose = ?`, [normalizedEmail, purpose]);
+    throw new Error("OTP has expired. Request a new code.");
+  }
+
+  const attempts = Number(row.attempts ?? 0);
+  if (attempts >= 5) {
+    await turso.execute(`DELETE FROM email_otps WHERE email = ? AND purpose = ?`, [normalizedEmail, purpose]);
+    throw new Error("Too many invalid OTP attempts. Request a new code.");
+  }
+
+  if ((row.otp ?? "").trim() !== otp.trim()) {
+    const nextAttempts = attempts + 1;
+    if (nextAttempts >= 5) {
+      await turso.execute(`DELETE FROM email_otps WHERE email = ? AND purpose = ?`, [normalizedEmail, purpose]);
+    } else {
+      await turso.execute(
+        `UPDATE email_otps SET attempts = ? WHERE email = ? AND purpose = ?`,
+        [nextAttempts, normalizedEmail, purpose],
+      );
+    }
+    throw new Error("Invalid OTP.");
+  }
+
+  await turso.execute(`DELETE FROM email_otps WHERE email = ? AND purpose = ?`, [normalizedEmail, purpose]);
 }
 
 export async function createSession(userId: string): Promise<DbSession> {
@@ -293,6 +357,21 @@ export async function getProfileForUser(profileId: string, userId: string): Prom
   const row = await queryOne<any>(`SELECT * FROM profiles WHERE id = ? AND userId = ?`, [profileId, userId]);
   if (!row) throw new Error("Profile not found.");
   return toDbProfile(row);
+}
+
+export async function isProfileSlugAvailable(slug: string, excludeProfileId?: string): Promise<boolean> {
+  const normalizedSlug = slug.trim().toLowerCase();
+  if (!normalizedSlug) return false;
+  const row = excludeProfileId
+    ? await queryOne<any>(
+      `SELECT id FROM profiles WHERE lower(slug) = lower(?) AND id != ?`,
+      [normalizedSlug, excludeProfileId],
+    )
+    : await queryOne<any>(
+      `SELECT id FROM profiles WHERE lower(slug) = lower(?)`,
+      [normalizedSlug],
+    );
+  return !row;
 }
 
 export async function updateProfile(profileId: string, userId: string, input: any): Promise<DbProfile> {
