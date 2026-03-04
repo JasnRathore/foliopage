@@ -144,7 +144,7 @@ export default function Home() {
                     Build your page free
                     <ArrowRight size={12} weight="bold" className="transition-transform group-hover:translate-x-0.5" />
                   </Link>
-                  <Link href={`/${featuredProfile.username}?view=recruiter`} className="group inline-flex items-center justify-center gap-2 border border-[#0e0e0e]/15 px-5 py-3.5 text-xs font-black uppercase tracking-widest text-[#0e0e0e]/50 transition-all hover:border-[#0e0e0e] hover:text-[#0e0e0e]">
+                  <Link href={`/${featuredProfile.username}`} className="group inline-flex items-center justify-center gap-2 border border-[#0e0e0e]/15 px-5 py-3.5 text-xs font-black uppercase tracking-widest text-[#0e0e0e]/50 transition-all hover:border-[#0e0e0e] hover:text-[#0e0e0e]">
                     See live demo
                     <ArrowUpRight size={12} />
                   </Link>
