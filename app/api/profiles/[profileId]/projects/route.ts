@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   if (auth.response) {
     return auth.response;
   }
-  const user = auth.user as any;
+  const user = auth.user;
 
   try {
     const { profileId } = await context.params;
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if (auth.response) {
     return auth.response;
   }
-  const user = auth.user as any;
+  const user = auth.user;
 
   try {
     const { profileId } = await context.params;

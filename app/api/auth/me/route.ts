@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getUserPlan } from "@/lib/db";
+import { getPlanLimits } from "@/lib/db";
 import { ok, requireAuth } from "@/lib/api-route-utils";
 
 export async function GET(request: NextRequest) {
@@ -8,12 +8,12 @@ export async function GET(request: NextRequest) {
     return auth.response;
   }
 
-  const user = auth.user as any;
-  const plan = await getUserPlan(user.id);
+  const user = auth.user;
+  const limits = getPlanLimits(user.planType);
   return ok({
     id: user.id,
     email: user.email,
-    planType: plan.planType,
-    limits: plan.limits,
+    planType: user.planType,
+    limits,
   });
 }

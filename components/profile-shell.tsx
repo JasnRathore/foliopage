@@ -97,6 +97,44 @@ function ContactIcon({ type }: { type: string }) {
   }
 }
 
+function renderManuscriptChapterAnchor(
+  t: ProfileTemplateStyles,
+  n: number,
+  label: string,
+) {
+  return (
+    <div className="relative flex items-end gap-6 overflow-hidden border-t border-[#e8e0d4]/8 pt-8 pb-4">
+      <span
+        className="select-none text-[clamp(80px,12vw,160px)] font-light leading-none text-[#e8e0d4]/[0.06]"
+        style={{ fontFamily: t.fontDisplay || undefined }}
+        aria-hidden
+      >
+        {String(n).padStart(2, "0")}
+      </span>
+      <span className={`${t.sectionTitle} mb-4`}>{label}</span>
+    </div>
+  );
+}
+
+function renderVerdictChapterAnchor(
+  t: ProfileTemplateStyles,
+  n: number,
+  label: string,
+) {
+  return (
+    <div className="relative overflow-hidden border-t-2 border-[#111111] pt-8 pb-6">
+      <span
+        className="absolute -top-2 left-0 select-none text-[clamp(80px,11vw,140px)] font-normal leading-none text-[#111111]/[0.04]"
+        style={{ fontFamily: t.fontDisplay || undefined }}
+        aria-hidden
+      >
+        {String(n).padStart(2, "0")}
+      </span>
+      <span className={`${t.sectionTitle} relative z-10`}>{label}</span>
+    </div>
+  );
+}
+
 // ─── Shared section blocks ────────────────────────────────────────────────────
 
 function ProfileImage({
@@ -2838,22 +2876,6 @@ function ManuscriptLayout({
     { label: "Other", values: profile.skills.other },
   ].filter((g) => g.values.length > 0);
 
-  // Chapter anchor helper — massive low-opacity number between sections
-  function ChapterAnchor({ n, label }: { n: number; label: string }) {
-    return (
-      <div className="relative flex items-end gap-6 border-t border-[#e8e0d4]/8 pt-8 pb-4 overflow-hidden">
-        <span
-          className="select-none text-[clamp(80px,12vw,160px)] font-light leading-none text-[#e8e0d4]/[0.06]"
-          style={{ fontFamily: t.fontDisplay || undefined }}
-          aria-hidden
-        >
-          {String(n).padStart(2, "0")}
-        </span>
-        <span className={`${t.sectionTitle} mb-4`}>{label}</span>
-      </div>
-    );
-  }
-
   return (
     <main className={t.stackMain}>
 
@@ -2914,7 +2936,7 @@ function ManuscriptLayout({
       {/* ── CHAPTER 01: WORK ─────────────────────────────────────────────── */}
       {profile.projects.length > 0 && (
         <>
-          <ChapterAnchor n={1} label="Work" />
+          {renderManuscriptChapterAnchor(t, 1, "Work")}
 
           {/* First project — hero scale, 2-col on desktop */}
           {(() => {
@@ -3016,7 +3038,7 @@ function ManuscriptLayout({
       {/* ── CHAPTER 02: SKILLS ───────────────────────────────────────────── */}
       {!recruiterMode && skillGroups.length > 0 && (
         <>
-          <ChapterAnchor n={2} label="Skills" />
+          {renderManuscriptChapterAnchor(t, 2, "Skills")}
           {/* Dense 4-col grid — contrast to the sparse hero and wide project section */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-8 pb-14 lg:grid-cols-4">
             {skillGroups.map((group) => (
@@ -3048,7 +3070,7 @@ function ManuscriptLayout({
       {/* ── CHAPTER 03: EXPERIENCE ──────────────────────────────────────── */}
       {!recruiterMode && profile.experiences.length > 0 && (
         <>
-          <ChapterAnchor n={3} label="Experience" />
+          {renderManuscriptChapterAnchor(t, 3, "Experience")}
           <div className="flex flex-col gap-0 pb-14">
             {profile.experiences.map((exp) => (
               <div
@@ -3084,7 +3106,7 @@ function ManuscriptLayout({
       {/* ── CHAPTER 04: CONNECT ─────────────────────────────────────────── */}
       {contactLinks.length > 0 && (
         <>
-          <ChapterAnchor n={4} label="Connect" />
+          {renderManuscriptChapterAnchor(t, 4, "Connect")}
           <div className="grid grid-cols-1 gap-1.5 pb-14 sm:grid-cols-2 lg:grid-cols-3">
             {contactLinks.map((entry) => (
               <a
@@ -3158,21 +3180,6 @@ function VerdictLayout({
   // Three accent colors cycling by project index
   const ACCENTS = ["#e63946", "#457b9d", "#2a9d8f"];
 
-  function ChapterAnchor({ n, label }: { n: number; label: string }) {
-    return (
-      <div className="relative overflow-hidden border-t-2 border-[#111111] pt-8 pb-6">
-        <span
-          className="absolute -top-2 left-0 select-none text-[clamp(80px,11vw,140px)] font-normal leading-none text-[#111111]/[0.04]"
-          style={{ fontFamily: t.fontDisplay || undefined }}
-          aria-hidden
-        >
-          {String(n).padStart(2, "0")}
-        </span>
-        <span className={`${t.sectionTitle} relative z-10`}>{label}</span>
-      </div>
-    );
-  }
-
   return (
     <div>
 
@@ -3239,7 +3246,7 @@ function VerdictLayout({
         {/* ── PROJECTS ── */}
         {profile.projects.length > 0 && (
           <>
-            <ChapterAnchor n={1} label="Work" />
+            {renderVerdictChapterAnchor(t, 1, "Work")}
             <div className="flex flex-col gap-0 pb-4">
               {profile.projects.map((project, idx) => {
                 const isEven = idx % 2 === 0;
@@ -3321,7 +3328,7 @@ function VerdictLayout({
         {/* ── SKILLS — dense bordered grid ── */}
         {!recruiterMode && skillGroups.length > 0 && (
           <>
-            <ChapterAnchor n={2} label="Skills" />
+            {renderVerdictChapterAnchor(t, 2, "Skills")}
             <div className="grid grid-cols-2 gap-0 border-2 border-[#111111] mb-16 lg:grid-cols-4">
               {skillGroups.map((group, gi) => (
                 <div
@@ -3348,7 +3355,7 @@ function VerdictLayout({
         {/* ── EXPERIENCE — dark band ── */}
         {!recruiterMode && profile.experiences.length > 0 && (
           <>
-            <ChapterAnchor n={3} label="Experience" />
+            {renderVerdictChapterAnchor(t, 3, "Experience")}
             <div className="mb-16 -mx-6 bg-[#111111] px-6 py-8 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12">
               <div className="flex flex-col gap-0">
                 {profile.experiences.map((exp, ei) => (
@@ -3393,7 +3400,7 @@ function VerdictLayout({
         {/* ── CONNECT ── */}
         {contactLinks.length > 0 && (
           <>
-            <ChapterAnchor n={4} label="Connect" />
+            {renderVerdictChapterAnchor(t, 4, "Connect")}
             <div className="grid grid-cols-1 gap-1 pb-16 sm:grid-cols-2 lg:grid-cols-3">
               {contactLinks.map((entry) => (
                 <a

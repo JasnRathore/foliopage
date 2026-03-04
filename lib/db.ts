@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { turso } from "./turso";
 import type {
   PlanType,
@@ -175,7 +176,7 @@ export async function signUp(email: string, password: string): Promise<DbUser> {
 }
 
 export async function signIn(email: string, password: string): Promise<DbUser> {
-  const row = await queryOne<any>(`SELECT * FROM users WHERE lower(email) = lower(?)`, [normalizeEmail(email)]);
+  const row = await queryOne<any>(`SELECT * FROM users WHERE email = ?`, [normalizeEmail(email)]);
   if (!row || row.password !== password) {
     throw new Error("Invalid email or password.");
   }
@@ -183,14 +184,14 @@ export async function signIn(email: string, password: string): Promise<DbUser> {
 }
 
 export async function resetPassword(email: string, nextPassword: string): Promise<DbUser> {
-  const user = await queryOne<any>(`SELECT * FROM users WHERE lower(email) = lower(?)`, [normalizeEmail(email)]);
+  const user = await queryOne<any>(`SELECT * FROM users WHERE email = ?`, [normalizeEmail(email)]);
   if (!user) throw new Error("User not found.");
   await turso.execute(`UPDATE users SET password = ? WHERE id = ?`, [nextPassword, user.id]);
   return { id: user.id, email: user.email, password: nextPassword, planType: user.planType, createdAt: user.createdAt };
 }
 
 export async function isEmailRegistered(email: string): Promise<boolean> {
-  const user = await queryOne<any>(`SELECT id FROM users WHERE lower(email) = lower(?)`, [normalizeEmail(email)]);
+  const user = await queryOne<any>(`SELECT id FROM users WHERE email = ?`, [normalizeEmail(email)]);
   return Boolean(user);
 }
 
@@ -257,11 +258,17 @@ export async function createSession(userId: string): Promise<DbSession> {
 }
 
 export async function getUserFromToken(token: string): Promise<DbUser | null> {
-  const session = await queryOne<any>(`SELECT * FROM sessions WHERE token = ?`, [token]);
-  if (!session) return null;
-  const user = await queryOne<any>(`SELECT * FROM users WHERE id = ?`, [session.userId]);
-  if (!user) return null;
-  return { id: user.id, email: user.email, password: user.password, planType: user.planType, createdAt: user.createdAt };
+  const row = await queryOne<any>(
+    `
+      SELECT u.id, u.email, u.password, u.planType, u.createdAt
+      FROM sessions s
+      INNER JOIN users u ON u.id = s.userId
+      WHERE s.token = ?
+    `,
+    [token],
+  );
+  if (!row) return null;
+  return { id: row.id, email: row.email, password: row.password, planType: row.planType, createdAt: row.createdAt };
 }
 
 export async function upgradePlan(userId: string, planType: PlanType): Promise<DbUser> {
@@ -317,9 +324,25 @@ function toDbProfile(row: any): DbProfile {
   };
 }
 
+function toDbProject(row: any): DbProject {
+  return {
+    id: row.id,
+    profileId: row.profileId,
+    title: row.title,
+    summary: row.summary,
+    highlights: fromJson<string[]>(row.highlights) ?? [],
+    githubUrl: row.githubUrl ?? "",
+    demoUrl: row.demoUrl ?? "",
+    techStack: fromJson<string[]>(row.techStack) ?? [],
+    orderIndex: row.orderIndex,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 export async function createProfile(userId: string, input: any): Promise<DbProfile> {
   // check slug uniqueness
-  const existing = await queryOne<any>(`SELECT id FROM profiles WHERE lower(slug) = lower(?)`, [input.slug]);
+  const existing = await queryOne<any>(`SELECT id FROM profiles WHERE slug = ? COLLATE NOCASE`, [input.slug]);
   if (existing) throw new Error("Slug already in use.");
   const id = `profile_${Math.random().toString(36).slice(2, 9)}`;
   const createdAt = nowIso();
@@ -359,16 +382,21 @@ export async function getProfileForUser(profileId: string, userId: string): Prom
   return toDbProfile(row);
 }
 
+async function assertProfileOwnership(profileId: string, userId: string): Promise<void> {
+  const row = await queryOne<any>(`SELECT id FROM profiles WHERE id = ? AND userId = ?`, [profileId, userId]);
+  if (!row) throw new Error("Profile not found.");
+}
+
 export async function isProfileSlugAvailable(slug: string, excludeProfileId?: string): Promise<boolean> {
   const normalizedSlug = slug.trim().toLowerCase();
   if (!normalizedSlug) return false;
   const row = excludeProfileId
     ? await queryOne<any>(
-      `SELECT id FROM profiles WHERE lower(slug) = lower(?) AND id != ?`,
+      `SELECT id FROM profiles WHERE slug = ? COLLATE NOCASE AND id != ?`,
       [normalizedSlug, excludeProfileId],
     )
     : await queryOne<any>(
-      `SELECT id FROM profiles WHERE lower(slug) = lower(?)`,
+      `SELECT id FROM profiles WHERE slug = ? COLLATE NOCASE`,
       [normalizedSlug],
     );
   return !row;
@@ -377,7 +405,7 @@ export async function isProfileSlugAvailable(slug: string, excludeProfileId?: st
 export async function updateProfile(profileId: string, userId: string, input: any): Promise<DbProfile> {
   const profile = await getProfileForUser(profileId, userId);
   if (input.slug && input.slug !== profile.slug) {
-    const exists = await queryOne<any>(`SELECT id FROM profiles WHERE lower(slug) = lower(?) AND id != ?`, [input.slug, profileId]);
+    const exists = await queryOne<any>(`SELECT id FROM profiles WHERE slug = ? COLLATE NOCASE AND id != ?`, [input.slug, profileId]);
     if (exists) throw new Error("Slug already in use.");
   }
   const updatedAt = nowIso();
@@ -440,8 +468,13 @@ export async function setSkillsFromCsv(profileId: string, userId: string, csv: s
   return setSkills(profileId, userId, parsed);
 }
 
-export async function upsertResume(profileId: string, userId: string, input: { fileName: string; fileSizeKb: number; fileUrl?: string }): Promise<DbProfile> {
-  const profile = await getProfileForUser(profileId, userId);
+export async function upsertResume(
+  profileId: string,
+  userId: string,
+  input: { fileName: string; fileSizeKb: number; fileUrl?: string },
+  existingProfile?: DbProfile,
+): Promise<DbProfile> {
+  const profile = existingProfile ?? await getProfileForUser(profileId, userId);
   const safeFileName = input.fileName.trim();
   const resume: DbResume = {
     fileName: safeFileName,
@@ -464,33 +497,29 @@ export async function deleteResume(profileId: string, userId: string): Promise<D
 }
 
 export async function listProjects(profileId: string, userId: string): Promise<DbProject[]> {
-  await getProfileForUser(profileId, userId);
+  await assertProfileOwnership(profileId, userId);
+  return listProjectsByProfileId(profileId);
+}
+
+async function listProjectsByProfileId(profileId: string): Promise<DbProject[]> {
   const rows = await queryAll<any>(`SELECT * FROM projects WHERE profileId = ? ORDER BY orderIndex ASC`, [profileId]);
-  return rows.map((r) => ({
-    id: r.id,
-    profileId: r.profileId,
-    title: r.title,
-    summary: r.summary,
-    highlights: fromJson<string[]>(r.highlights) ?? [],
-    githubUrl: r.githubUrl ?? "",
-    demoUrl: r.demoUrl ?? "",
-    techStack: fromJson<string[]>(r.techStack) ?? [],
-    orderIndex: r.orderIndex,
-    createdAt: r.createdAt,
-    updatedAt: r.updatedAt,
-  }));
+  return rows.map((r) => toDbProject(r));
 }
 
 export async function createProject(profileId: string, userId: string, input: any): Promise<DbProject> {
-  const profile = await getProfileForUser(profileId, userId);
-  const user = await queryOne<any>(`SELECT * FROM users WHERE id = ?`, [userId]);
+  const [profileRow, user, projectCountRow] = await Promise.all([
+    queryOne<any>(`SELECT id FROM profiles WHERE id = ? AND userId = ?`, [profileId, userId]),
+    queryOne<any>(`SELECT planType FROM users WHERE id = ?`, [userId]),
+    queryOne<any>(`SELECT COUNT(*) as count FROM projects WHERE profileId = ?`, [profileId]),
+  ]);
+  if (!profileRow) throw new Error("Profile not found.");
   if (!user) throw new Error("User not found.");
-  const existingProjects = await listProjects(profileId, userId);
+  const existingProjectCount = Number(projectCountRow?.count ?? projectCountRow?.[0] ?? 0);
   const { maxProjects } = getPlanLimits(user.planType);
-  if (existingProjects.length >= maxProjects) throw new Error(`Project limit reached for ${user.planType} plan.`);
+  if (existingProjectCount >= maxProjects) throw new Error(`Project limit reached for ${user.planType} plan.`);
   const id = `project_${Math.random().toString(36).slice(2, 9)}`;
   const createdAt = nowIso();
-  const orderIndex = existingProjects.length + 1;
+  const orderIndex = existingProjectCount + 1;
   await turso.execute(`INSERT INTO projects (id, profileId, title, summary, highlights, githubUrl, demoUrl, techStack, orderIndex, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
     id,
     profileId,
@@ -504,13 +533,22 @@ export async function createProject(profileId: string, userId: string, input: an
     createdAt,
     createdAt,
   ]);
-  return (await queryOne<any>(`SELECT * FROM projects WHERE id = ?`, [id])) as DbProject;
+  const row = await queryOne<any>(`SELECT * FROM projects WHERE id = ?`, [id]);
+  if (!row) throw new Error("Project not found.");
+  return toDbProject(row);
 }
 
 export async function updateProject(profileId: string, projectId: string, userId: string, input: any): Promise<DbProject> {
-  await getProfileForUser(profileId, userId);
-  const project = await queryOne<any>(`SELECT * FROM projects WHERE id = ?`, [projectId]);
-  if (!project || project.profileId !== profileId) throw new Error("Project not found.");
+  const project = await queryOne<any>(
+    `
+      SELECT p.*
+      FROM projects p
+      INNER JOIN profiles pr ON pr.id = p.profileId
+      WHERE p.id = ? AND p.profileId = ? AND pr.userId = ?
+    `,
+    [projectId, profileId, userId],
+  );
+  if (!project) throw new Error("Project not found.");
   const updatedAt = nowIso();
   const highlights = input.highlights ? toJson(input.highlights) : project.highlights;
   const techStack = input.techStack ? toJson(input.techStack) : project.techStack;
@@ -519,47 +557,78 @@ export async function updateProject(profileId: string, projectId: string, userId
   const githubUrl = input.githubUrl !== undefined ? input.githubUrl ?? null : project.githubUrl;
   const demoUrl = input.demoUrl !== undefined ? input.demoUrl ?? null : project.demoUrl;
   await turso.execute(`UPDATE projects SET title = ?, summary = ?, highlights = ?, techStack = ?, githubUrl = ?, demoUrl = ?, updatedAt = ? WHERE id = ?`, [title, summary, highlights, techStack, githubUrl, demoUrl, updatedAt, projectId]);
-  return (await queryOne<any>(`SELECT * FROM projects WHERE id = ?`, [projectId])) as DbProject;
+  const row = await queryOne<any>(`SELECT * FROM projects WHERE id = ?`, [projectId]);
+  if (!row) throw new Error("Project not found.");
+  return toDbProject(row);
 }
 
 export async function deleteProject(profileId: string, projectId: string, userId: string): Promise<{ deleted: true }> {
-  await getProfileForUser(profileId, userId);
-  const project = await queryOne<any>(`SELECT * FROM projects WHERE id = ?`, [projectId]);
-  if (!project || project.profileId !== profileId) throw new Error("Project not found.");
+  const project = await queryOne<any>(
+    `
+      SELECT p.id
+      FROM projects p
+      INNER JOIN profiles pr ON pr.id = p.profileId
+      WHERE p.id = ? AND p.profileId = ? AND pr.userId = ?
+    `,
+    [projectId, profileId, userId],
+  );
+  if (!project) throw new Error("Project not found.");
   await turso.execute(`DELETE FROM projects WHERE id = ?`, [projectId]);
-  // resequence
-  const projects = await queryAll<any>(`SELECT id FROM projects WHERE profileId = ? ORDER BY orderIndex ASC`, [profileId]);
-  let idx = 1;
-  for (const p of projects) {
-    await turso.execute(`UPDATE projects SET orderIndex = ? WHERE id = ?`, [idx++, p.id]);
-  }
+  await turso.execute(
+    `
+      UPDATE projects
+      SET orderIndex = (
+        SELECT ranked.rowNum
+        FROM (
+          SELECT id, ROW_NUMBER() OVER (ORDER BY orderIndex ASC, createdAt ASC, id ASC) AS rowNum
+          FROM projects
+          WHERE profileId = ?
+        ) AS ranked
+        WHERE ranked.id = projects.id
+      )
+      WHERE profileId = ?
+    `,
+    [profileId, profileId],
+  );
   return { deleted: true };
 }
 
 export async function reorderProjects(profileId: string, userId: string, orderedProjectIds: string[]): Promise<DbProject[]> {
-  await getProfileForUser(profileId, userId);
-  const current = await listProjects(profileId, userId);
+  await assertProfileOwnership(profileId, userId);
+  const current = await listProjectsByProfileId(profileId);
   if (current.length !== orderedProjectIds.length) throw new Error("Project order payload mismatch.");
   const currentIds = new Set(current.map((p) => p.id));
   for (const id of orderedProjectIds) {
     if (!currentIds.has(id)) throw new Error("Invalid project IDs.");
   }
-  for (let i = 0; i < orderedProjectIds.length; i++) {
-    await turso.execute(`UPDATE projects SET orderIndex = ? WHERE id = ?`, [i + 1, orderedProjectIds[i]]);
+  if (orderedProjectIds.length > 0) {
+    const whenClauses = orderedProjectIds.map(() => "WHEN ? THEN ?").join(" ");
+    const idPlaceholders = orderedProjectIds.map(() => "?").join(", ");
+    const params: unknown[] = [];
+    for (let i = 0; i < orderedProjectIds.length; i++) {
+      params.push(orderedProjectIds[i], i + 1);
+    }
+    params.push(profileId, ...orderedProjectIds);
+    await turso.execute(
+      `UPDATE projects SET orderIndex = CASE id ${whenClauses} ELSE orderIndex END WHERE profileId = ? AND id IN (${idPlaceholders})`,
+      params as any,
+    );
   }
-  return await listProjects(profileId, userId);
+  return await listProjectsByProfileId(profileId);
 }
 
 export async function getPublicProfileBySlug(
   slug: string,
   recruiterView: boolean,
 ): Promise<DbPublicProfile> {
-  const row = await queryOne<any>(`SELECT * FROM profiles WHERE lower(slug) = lower(?) AND published = 1`, [slug]);
+  const row = await queryOne<any>(`SELECT * FROM profiles WHERE slug = ? COLLATE NOCASE AND published = 1`, [slug]);
   if (!row) throw new Error("Published profile not found.");
   const profile = toDbProfile(row);
-  const user = await queryOne<any>(`SELECT * FROM users WHERE id = ?`, [profile.userId]);
+  const [user, projects] = await Promise.all([
+    queryOne<any>(`SELECT * FROM users WHERE id = ?`, [profile.userId]),
+    listProjectsByProfileId(profile.id),
+  ]);
   if (!user) throw new Error("Profile owner not found.");
-  const projects = await listProjects(profile.id, profile.userId);
   const emailValue = (profile.contactEmail?.trim() || user.email) ?? null;
   const visibleSocials = {
     linkedin: profile.socials.linkedin.visible && profile.socials.linkedin.url ? profile.socials.linkedin.url : null,

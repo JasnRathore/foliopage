@@ -11,8 +11,6 @@ import {
   ShareNetwork,
   Star,
 } from "@phosphor-icons/react/dist/ssr";
-import { listProfiles } from "@/lib/profile-data";
-import { use } from "react";
 
 export const metadata: Metadata = {
   title: "foliopage - Link in bio for careers",
@@ -232,7 +230,7 @@ export default function Home() {
                 Show your<br />unique career<br /><em className="not-italic text-[#e8320a]">story.</em>
               </h2>
               <p className="mt-5 max-w-xs text-sm leading-relaxed text-[#0e0e0e]/50">
-                Upload your resume, add your top three projects, and publish. foliopage turns your work history into something recruiters can't ignore.
+                Upload your resume, add your top three projects, and publish. foliopage turns your work history into something recruiters can&apos;t ignore.
               </p>
               <Link href="/sign-up" className="group mt-7 inline-flex items-center gap-2 border border-[#0e0e0e] bg-[#0e0e0e] px-5 py-3 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:bg-transparent hover:text-[#0e0e0e]">
                 Build your story <ArrowRight size={11} weight="bold" />
@@ -423,7 +421,7 @@ export default function Home() {
                   Own your career<br /><em className="not-italic text-[#e8320a]">narrative.</em>
                 </h2>
                 <p className="mt-5 max-w-xs text-sm leading-relaxed text-[#0e0e0e]/50">
-                  Your resume isn't buried. It's the centerpiece — alongside projects that show impact, not just effort.
+                  Your resume isn&apos;t buried. It&apos;s the centerpiece — alongside projects that show impact, not just effort.
                 </p>
                 <ul className="mt-6 space-y-3">
                   {["PDF resume with instant download", "Impact-framed project cards", "Skills and tech stack display", "Custom domain support on Member"].map((item) => (

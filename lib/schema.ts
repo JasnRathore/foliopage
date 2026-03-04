@@ -81,4 +81,19 @@ export async function ensureSchema(client: SqlClient): Promise<void> {
       PRIMARY KEY (email, purpose)
     )
   `);
+
+  await client.execute(`
+    CREATE INDEX IF NOT EXISTS idx_profiles_user_created_at
+    ON profiles(userId, createdAt DESC)
+  `);
+
+  await client.execute(`
+    CREATE INDEX IF NOT EXISTS idx_profiles_slug_published_nocase
+    ON profiles(slug COLLATE NOCASE, published)
+  `);
+
+  await client.execute(`
+    CREATE INDEX IF NOT EXISTS idx_projects_profile_order
+    ON projects(profileId, orderIndex)
+  `);
 }

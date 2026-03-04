@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if (auth.response) {
     return auth.response;
   }
-  const user = auth.user as any;
+  const user = auth.user;
 
   try {
     const body = await readJson<ReorderBody>(request);

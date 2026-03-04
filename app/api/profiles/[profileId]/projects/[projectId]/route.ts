@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (auth.response) {
     return auth.response;
   }
-  const user = auth.user as any;
+  const user = auth.user;
 
   try {
     const { profileId, projectId } = await context.params;
@@ -46,7 +46,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   if (auth.response) {
     return auth.response;
   }
-  const user = auth.user as any;
+  const user = auth.user;
 
   try {
     const { profileId, projectId } = await context.params;

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getUserPlan } from "@/lib/db";
+import { getPlanLimits } from "@/lib/db";
 import { ok, requireAuth } from "@/lib/api-route-utils";
 
 export async function GET(request: NextRequest) {
@@ -7,18 +7,13 @@ export async function GET(request: NextRequest) {
   if (auth.response) {
     return auth.response;
   }
-  const user = auth.user as any;
-
-  try {
-    const plan = await getUserPlan(user.id);
-    return ok({
-      ...plan,
-      pricing: {
-        proMonthly: 499,
-        proAnnual: 4999,
-      },
-    });
-  } catch (error) {
-    return ok({ planType: "free", limits: { maxProjects: 3 }, pricing: { proMonthly: 499, proAnnual: 4999 } });
-  }
+  const user = auth.user;
+  return ok({
+    planType: user.planType,
+    limits: getPlanLimits(user.planType),
+    pricing: {
+      proMonthly: 499,
+      proAnnual: 4999,
+    },
+  });
 }

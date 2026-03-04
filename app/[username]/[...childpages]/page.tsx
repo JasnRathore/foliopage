@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { DynamicFavicon } from "@/components/dynamic-favicon";
 import { ProfileShell } from "@/components/profile-shell";
+import { getPublicProfileBySlug } from "@/lib/db";
 import { mapPublicApiProfileToProfileData } from "@/lib/public-profile-adapter";
 import type { PublicProfileApi } from "@/lib/site-api";
 import { getChildPageBySegments, getProfileByUsername } from "@/lib/profile-data";
@@ -23,55 +24,16 @@ function resolvePngFaviconUrl(profileImageUrl: string | null | undefined): strin
   return /\.png(?:$|[?#])/i.test(profileImageUrl) ? profileImageUrl : "/favicon.ico";
 }
 
-function getApiBaseUrl(hostHeader: string | null, protoHeader: string | null): string {
-  if (hostHeader) {
-    const protocol = protoHeader ?? (hostHeader.includes("localhost") ? "http" : "https");
-    return `${protocol}://${hostHeader}`;
-  }
-
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  return "http://localhost:3000";
-}
-
-async function fetchPublicProfile(
+const fetchPublicProfile = cache(async (
   username: string,
   recruiterMode: boolean,
-): Promise<PublicProfileApi | null> {
-  const headerStore = await headers();
-  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  const proto = headerStore.get("x-forwarded-proto");
-  const baseUrl = getApiBaseUrl(host, proto);
-  const query = recruiterMode ? "?view=recruiter" : "";
-
-  const response = await fetch(
-    `${baseUrl}/api/public/${encodeURIComponent(username)}${query}`,
-    { cache: "no-store" },
-  );
-
-  if (!response.ok) {
+): Promise<PublicProfileApi | null> => {
+  try {
+    return await getPublicProfileBySlug(username, recruiterMode);
+  } catch {
     return null;
   }
-
-  const payload = (await response.json()) as {
-    ok: boolean;
-    data?: {
-      profile: PublicProfileApi;
-    };
-  };
-
-  if (!payload.ok || !payload.data?.profile) {
-    return null;
-  }
-
-  return payload.data.profile;
-}
+});
 
 export async function generateMetadata({
   params,

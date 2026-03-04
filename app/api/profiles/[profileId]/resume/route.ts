@@ -49,7 +49,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       fileName,
       fileSizeKb,
       fileUrl: resolvedFileUrl,
-    });
+    }, profileForUser);
     return ok({ profile });
   } catch (error) {
     return fail((error as Error).message, 400);
