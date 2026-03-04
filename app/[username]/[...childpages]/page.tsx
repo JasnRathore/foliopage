@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import { cache } from "react";
 import { notFound } from "next/navigation";
-import { DynamicFavicon } from "@/components/dynamic-favicon";
 import { ProfileShell } from "@/components/profile-shell";
-import { getPublicProfileBySlug } from "@/lib/db";
+import { getCachedPublicProfileBySlug } from "@/lib/public-profile-cache";
 import { mapPublicApiProfileToProfileData } from "@/lib/public-profile-adapter";
 import type { PublicProfileApi } from "@/lib/site-api";
 import { getChildPageBySegments, getProfileByUsername } from "@/lib/profile-data";
@@ -13,27 +11,20 @@ interface ChildPageProps {
   searchParams: Promise<{ view?: string }>;
 }
 
+export const revalidate = 300;
+
 function resolvePngFavicon(profileImageUrl: string | null | undefined): Metadata["icons"] | undefined {
   if (!profileImageUrl) return undefined;
   if (!/\.png(?:$|[?#])/i.test(profileImageUrl)) return undefined;
   return { icon: profileImageUrl };
 }
 
-function resolvePngFaviconUrl(profileImageUrl: string | null | undefined): string {
-  if (!profileImageUrl) return "/favicon.ico";
-  return /\.png(?:$|[?#])/i.test(profileImageUrl) ? profileImageUrl : "/favicon.ico";
-}
-
-const fetchPublicProfile = cache(async (
+async function fetchPublicProfile(
   username: string,
   recruiterMode: boolean,
-): Promise<PublicProfileApi | null> => {
-  try {
-    return await getPublicProfileBySlug(username, recruiterMode);
-  } catch {
-    return null;
-  }
-});
+): Promise<PublicProfileApi | null> {
+  return getCachedPublicProfileBySlug(username, recruiterMode);
+}
 
 export async function generateMetadata({
   params,
@@ -82,11 +73,9 @@ export default async function ChildPage({ params, searchParams }: ChildPageProps
   }
 
   const profile = mapPublicApiProfileToProfileData(publicProfile);
-  const faviconHref = resolvePngFaviconUrl(publicProfile.profileImageUrl);
 
   return (
     <>
-      <DynamicFavicon href={faviconHref} />
       <ProfileShell
         profile={profile}
         childPage={childPage}
