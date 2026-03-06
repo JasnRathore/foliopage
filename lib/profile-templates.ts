@@ -176,8 +176,8 @@ export interface ProfileTemplateDefinition {
 export const defaultProfileTemplateId: ProfileTemplateId = "linkboard";
 
 const SIDEBAR_OUTER = "flex w-full min-h-dvh flex-col md:flex-row";
-const SIDEBAR_LEFT = "w-full px-5 pt-10 pb-6 md:sticky md:top-0 md:h-screen md:w-[280px] md:shrink-0 md:overflow-y-auto md:px-8 md:py-10 lg:w-[320px]";
-const SIDEBAR_RIGHT = "flex-1 px-5 pb-14 pt-2 md:px-8 md:pt-10 md:max-w-2xl lg:max-w-3xl";
+const SIDEBAR_LEFT = "w-full px-5 pt-6 pb-5 md:sticky md:top-0 md:h-screen md:w-[280px] md:shrink-0 md:overflow-y-auto md:px-8 md:py-10 lg:w-[320px]";
+const SIDEBAR_RIGHT = "flex-1 px-5 pb-16 pt-5 md:px-8 md:pt-10 md:max-w-2xl lg:max-w-3xl";
 
 /** Generate a minimal webkit + standard scrollbar CSS block. */
 function sb(opts: {

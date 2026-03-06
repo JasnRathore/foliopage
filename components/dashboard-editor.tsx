@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  useCallback, useEffect, useMemo, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type FormEvent, type KeyboardEvent,
 } from "react";
 import Link from "next/link";
@@ -23,7 +23,7 @@ import {
 import {
   ArrowRight, ArrowSquareOut, CaretRight, CheckCircle, Circle,
   FilePdf, FloppyDisk, House, Lightning, ListBullets,
-  Plus, SignOut, Sparkle, Trash, User, UserCircle, Warning, X, Briefcase,
+  Moon, Plus, SignOut, Sparkle, Sun, Trash, User, UserCircle, Warning, X, Briefcase,
   EnvelopeSimple, GithubLogo, LinkedinLogo, InstagramLogo, TwitterLogo,
   Wrench,
 } from "@phosphor-icons/react";
@@ -114,28 +114,36 @@ function dedupeSkills(values: string[]): string[] {
   }, []);
 }
 
+// ─── Theme context ────────────────────────────────────────────────────────────
+export const DarkCtx = createContext(false);
+const useDk = () => useContext(DarkCtx);
+
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const inputCls = [
-  "w-full border border-[#0e0e0e]/12 bg-white px-3 py-2.5 text-sm text-[#0e0e0e]",
-  "placeholder-[#0e0e0e]/25 outline-none transition-all duration-150",
-  "focus:border-[#0e0e0e]/30 focus:ring-2 focus:ring-[#0e0e0e]/5",
-  "hover:border-[#0e0e0e]/18",
-].join(" ");
+function getInputCls(dk: boolean) {
+  return [
+    "w-full border px-3 py-2.5 text-sm outline-none transition-all duration-150",
+    dk
+      ? "border-[#e8e6e0]/12 bg-[#252523] text-[#e8e6e0] placeholder-[#e8e6e0]/25 focus:border-[#e8e6e0]/30 focus:ring-2 focus:ring-[#e8e6e0]/5 hover:border-[#e8e6e0]/18"
+      : "border-[#0e0e0e]/12 bg-white text-[#0e0e0e] placeholder-[#0e0e0e]/25 focus:border-[#0e0e0e]/30 focus:ring-2 focus:ring-[#0e0e0e]/5 hover:border-[#0e0e0e]/18",
+  ].join(" ");
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#0e0e0e]/38">{children}</span>;
+  const dk = useDk();
+  return <span className={`font-mono text-[9px] font-bold uppercase tracking-[0.2em] ${dk ? "text-[#e8e6e0]/45" : "text-[#0e0e0e]/38"}`}>{children}</span>;
 }
 
 function Field({ label, hint, children, className = "" }: {
   label?: string; hint?: string; children: React.ReactNode; className?: string;
 }) {
+  const dk = useDk();
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && <Label>{label}</Label>}
       {children}
-      {hint && <p className="font-mono text-[9px] text-[#0e0e0e]/28">{hint}</p>}
+      {hint && <p className={`font-mono text-[9px] ${dk ? "text-[#e8e6e0]/35" : "text-[#0e0e0e]/28"}`}>{hint}</p>}
     </div>
   );
 }
@@ -143,6 +151,7 @@ function Field({ label, hint, children, className = "" }: {
 function Toggle({ checked, onChange, label }: {
   checked: boolean; onChange: (v: boolean) => void; label?: string;
 }) {
+  const dk = useDk();
   return (
     <label className="inline-flex cursor-pointer select-none items-center gap-2.5 group">
       <button
@@ -152,27 +161,31 @@ function Toggle({ checked, onChange, label }: {
         onClick={() => onChange(!checked)}
         className={[
           "relative h-[18px] w-8 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8320a]/40",
-          checked ? "bg-[#0e0e0e]" : "bg-[#0e0e0e]/10 group-hover:bg-[#0e0e0e]/18",
+          checked
+            ? (dk ? "bg-[#e8e6e0]" : "bg-[#0e0e0e]")
+            : (dk ? "bg-[#e8e6e0]/15 group-hover:bg-[#e8e6e0]/22" : "bg-[#0e0e0e]/10 group-hover:bg-[#0e0e0e]/18"),
         ].join(" ")}
       >
         <span className={[
-          "absolute top-[2px] h-[14px] w-[14px] bg-white shadow-sm transition-all duration-150",
+          "absolute top-[2px] h-[14px] w-[14px] shadow-sm transition-all duration-150",
           checked ? "left-[18px]" : "left-[2px]",
+          dk ? "bg-[#111110]" : "bg-white",
         ].join(" ")} />
       </button>
-      {label && <span className="text-xs text-[#0e0e0e]/50 group-hover:text-[#0e0e0e]/70 transition-colors">{label}</span>}
+      {label && <span className={`text-xs transition-colors ${dk ? "text-[#e8e6e0]/55 group-hover:text-[#e8e6e0]/75" : "text-[#0e0e0e]/50 group-hover:text-[#0e0e0e]/70"}`}>{label}</span>}
     </label>
   );
 }
 
 function ProgressRing({ pct, size = 36 }: { pct: number; size?: number }) {
+  const dk = useDk();
   const r = (size - 5) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (pct / 100) * circ;
-  const color = pct === 100 ? "#10b981" : pct >= 50 ? "#e8320a" : "#0e0e0e";
+  const color = pct === 100 ? "#10b981" : pct >= 50 ? "#e8320a" : (dk ? "#e8e6e0" : "#0e0e0e");
   return (
     <svg width={size} height={size} className="-rotate-90" style={{ flexShrink: 0 }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth="2" className="text-[#0e0e0e]/8" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth="2" className={dk ? "text-[#e8e6e0]/10" : "text-[#0e0e0e]/8"} />
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="2.5"
         strokeLinecap="square" strokeDasharray={circ} strokeDashoffset={offset}
@@ -183,15 +196,17 @@ function ProgressRing({ pct, size = 36 }: { pct: number; size?: number }) {
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`border border-[#0e0e0e]/8 bg-white ${className}`}>{children}</div>;
+  const dk = useDk();
+  return <div className={`border ${dk ? "border-[#e8e6e0]/8 bg-[#1e1e1c]" : "border-[#0e0e0e]/8 bg-white"} ${className}`}>{children}</div>;
 }
 
 function CardHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
+  const dk = useDk();
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-[#0e0e0e]/6 px-5 py-4">
+    <div className={`flex items-start justify-between gap-4 border-b px-5 py-4 ${dk ? "border-[#e8e6e0]/6" : "border-[#0e0e0e]/6"}`}>
       <div>
-        <h3 className="text-[13px] font-black tracking-tight text-[#0e0e0e]">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-[#0e0e0e]/38">{subtitle}</p>}
+        <h3 className={`text-[13px] font-black tracking-tight ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>{title}</h3>
+        {subtitle && <p className={`mt-0.5 text-xs ${dk ? "text-[#e8e6e0]/45" : "text-[#0e0e0e]/38"}`}>{subtitle}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -199,6 +214,7 @@ function CardHeader({ title, subtitle, action }: { title: string; subtitle?: str
 }
 
 function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error"; onClose: () => void }) {
+  const dk = useDk();
   useEffect(() => {
     const t = setTimeout(onClose, 4200);
     return () => clearTimeout(t);
@@ -206,11 +222,11 @@ function Toast({ msg, type, onClose }: { msg: string; type: "success" | "error";
   return (
     <div
       className={[
-        "fixed bottom-6 left-1/2 z-[9999] flex -translate-x-1/2 items-center gap-3 border px-4 py-3 shadow-2xl backdrop-blur-md",
+        "fixed bottom-24 left-1/2 z-[9999] flex -translate-x-1/2 items-center gap-3 border px-4 py-3 shadow-2xl backdrop-blur-md lg:bottom-6",
         "animate-[toastIn_0.28s_cubic-bezier(0.34,1.56,0.64,1)_both]",
         type === "success"
           ? "border-emerald-200/70 bg-emerald-50/96 text-emerald-800"
-          : "border-[#e8320a]/20 bg-white/96 text-[#e8320a]",
+          : (dk ? "border-[#e8320a]/30 bg-[#1e1e1c]/98 text-[#e8320a]" : "border-[#e8320a]/20 bg-white/96 text-[#e8320a]"),
       ].join(" ")}
     >
       {type === "success"
@@ -246,6 +262,7 @@ export function DashboardEditor() {
   const checkoutPlan: CheckoutPlan = "pro_monthly";
   const [activeSection, setActiveSection] = useState<NavSection>("profile");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   const [slugCheckState, setSlugCheckState] = useState<SlugCheckState>("idle");
   const [slugCheckError, setSlugCheckError] = useState("");
   const [lastCheckedSlug, setLastCheckedSlug] = useState("");
@@ -383,6 +400,19 @@ export function DashboardEditor() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   });
+
+  // Dark mode persistence
+  useEffect(() => {
+    const stored = localStorage.getItem("foliopage_dark");
+    if (stored === "1") setIsDark(true);
+  }, []);
+
+  function toggleDark() {
+    setIsDark((v) => {
+      localStorage.setItem("foliopage_dark", v ? "0" : "1");
+      return !v;
+    });
+  }
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   async function onSignIn(e: FormEvent<HTMLFormElement>) {
@@ -602,71 +632,84 @@ export function DashboardEditor() {
   // ── Loading screen ──────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-[#f0ece2] font-[family-name:var(--font-cabinet)]">
-        <p className="text-sm font-black tracking-tight text-[#0e0e0e]/25">folio<span className="text-[#e8320a]">page</span></p>
-        <div className="flex gap-1.5">
-          {[0, 1, 2].map((i) => (
-            <span key={i} style={{ animationDelay: `${i * 180}ms` }} className="h-1.5 w-1.5 animate-pulse bg-[#0e0e0e]/20" />
-          ))}
+      <DarkCtx.Provider value={isDark}>
+        <div className={`flex min-h-dvh flex-col items-center justify-center gap-5 font-[family-name:var(--font-cabinet)] transition-colors duration-300 ${isDark ? "bg-[#111110]" : "bg-[#f0ece2]"}`}>
+          <p className={`text-sm font-black tracking-tight ${isDark ? "text-[#e8e6e0]/25" : "text-[#0e0e0e]/25"}`}>folio<span className="text-[#e8320a]">page</span></p>
+          <div className="flex gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <span key={i} style={{ animationDelay: `${i * 180}ms` }} className={`h-1.5 w-1.5 animate-pulse ${isDark ? "bg-[#e8e6e0]/20" : "bg-[#0e0e0e]/20"}`} />
+            ))}
+          </div>
         </div>
-      </div>
+      </DarkCtx.Provider>
     );
   }
 
   // ── Sign-in screen ──────────────────────────────────────────────────────────
   if (!token || !user) {
+    const dk = isDark;
+    const inputCls = getInputCls(dk);
     return (
-      <div className="relative flex min-h-dvh flex-col overflow-hidden bg-[#f0ece2] font-[family-name:var(--font-cabinet)] text-[#0e0e0e]">
-        <span aria-hidden className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 select-none text-center text-[38vw] font-black leading-none tracking-[-0.05em] text-[#0e0e0e]/[0.033]">fp</span>
-        <header className="flex items-center justify-between border-b border-[#0e0e0e]/10 px-5 py-4">
-          <Link href="/" className="text-sm font-black tracking-tight">folio<span className="text-[#e8320a]">page</span></Link>
-          <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#0e0e0e]/28">Dashboard</span>
-        </header>
-        <main className="flex flex-1 items-start justify-center px-4 py-16">
-          <div className="relative z-10 w-full max-w-xl">
-            <p className="inline-block border border-[#0e0e0e]/12 bg-[#0e0e0e]/[0.04] px-3 py-1 font-mono text-[9px] uppercase tracking-[0.22em] text-[#0e0e0e]/40">Your dashboard</p>
-            <h1 className="mt-4 text-[clamp(2.5rem,9vw,5rem)] font-black leading-[0.88] tracking-[-0.04em]">
-              Welcome<br /><em className="not-italic text-[#e8320a]">back.</em>
-            </h1>
-            <div className="mt-8 grid gap-px bg-[#0e0e0e]/8 sm:grid-cols-2">
-              <form onSubmit={onSignIn} className="space-y-4 bg-white p-6">
-                <h2 className="text-[13px] font-black text-[#0e0e0e]">Sign in</h2>
-                <Field label="Email"><input className={inputCls} placeholder="you@example.com" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} /></Field>
-                <Field label="Password"><input type="password" className={inputCls} placeholder="Your password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} /></Field>
-                <button disabled={authLoading} className="group inline-flex items-center gap-2 border border-[#e8320a] bg-[#e8320a] px-5 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-transparent hover:text-[#e8320a] disabled:opacity-55">
-                  {authLoading ? "Signing in…" : <><span>Sign in</span><ArrowRight size={10} weight="bold" className="transition-transform group-hover:translate-x-0.5" /></>}
-                </button>
-              </form>
-              <form onSubmit={onReset} className="space-y-4 bg-[#f8f6f0] p-6">
-                <h2 className="text-[13px] font-black text-[#0e0e0e]">Reset password</h2>
-                <Field label="New password"><input type="password" className={inputCls} placeholder="Set a new password" value={resetValue} onChange={(e) => setResetValue(e.target.value)} /></Field>
-                {authResetOtpRequested && (
-                  <Field label="Email OTP">
-                    <input
-                      className={inputCls}
-                      placeholder="6-digit code"
-                      inputMode="numeric"
-                      pattern="[0-9]{6}"
-                      value={authResetOtp}
-                      onChange={(e) => setAuthResetOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    />
-                  </Field>
-                )}
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <button disabled={authLoading} className="border border-[#0e0e0e]/12 px-4 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest text-[#0e0e0e]/45 transition-all hover:border-[#0e0e0e]/28 hover:text-[#0e0e0e] disabled:opacity-55">{authLoading ? "Resetting…" : authResetOtpRequested ? "Verify OTP & reset" : "Send OTP"}</button>
-                  <Link href="/sign-up" className="font-mono text-[10px] uppercase tracking-widest text-[#0e0e0e]/30 hover:text-[#0e0e0e] transition-colors">Sign up →</Link>
-                </div>
-              </form>
+      <DarkCtx.Provider value={isDark}>
+        <div className={`relative flex min-h-dvh flex-col overflow-hidden font-[family-name:var(--font-cabinet)] transition-colors duration-300 ${dk ? "bg-[#111110] text-[#e8e6e0]" : "bg-[#f0ece2] text-[#0e0e0e]"}`}>
+          <span aria-hidden className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 select-none text-center text-[38vw] font-black leading-none tracking-[-0.05em] ${dk ? "text-[#e8e6e0]/[0.025]" : "text-[#0e0e0e]/[0.033]"}`}>fp</span>
+          <header className={`flex items-center justify-between border-b px-5 py-4 ${dk ? "border-[#e8e6e0]/10" : "border-[#0e0e0e]/10"}`}>
+            <Link href="/" className="text-sm font-black tracking-tight">folio<span className="text-[#e8320a]">page</span></Link>
+            <div className="flex items-center gap-3">
+              <button onClick={toggleDark} className={`p-1.5 transition-colors ${dk ? "text-[#e8e6e0]/40 hover:text-[#e8e6e0]" : "text-[#0e0e0e]/35 hover:text-[#0e0e0e]"}`} aria-label="Toggle dark mode">
+                {dk ? <Sun size={14} /> : <Moon size={14} />}
+              </button>
+              <span className={`font-mono text-[9px] uppercase tracking-[0.22em] ${dk ? "text-[#e8e6e0]/28" : "text-[#0e0e0e]/28"}`}>Dashboard</span>
             </div>
-          </div>
-        </main>
-        {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
-        <style>{`@keyframes toastIn { from { transform: translateX(-50%) translateY(12px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }`}</style>
-      </div>
+          </header>
+          <main className="flex flex-1 items-start justify-center px-4 py-16">
+            <div className="relative z-10 w-full max-w-xl">
+              <p className={`inline-block border px-3 py-1 font-mono text-[9px] uppercase tracking-[0.22em] ${dk ? "border-[#e8e6e0]/12 bg-[#e8e6e0]/[0.04] text-[#e8e6e0]/40" : "border-[#0e0e0e]/12 bg-[#0e0e0e]/[0.04] text-[#0e0e0e]/40"}`}>Your dashboard</p>
+              <h1 className="mt-4 text-[clamp(2.5rem,9vw,5rem)] font-black leading-[0.88] tracking-[-0.04em]">
+                Welcome<br /><em className="not-italic text-[#e8320a]">back.</em>
+              </h1>
+              <div className={`mt-8 grid gap-px sm:grid-cols-2 ${dk ? "bg-[#e8e6e0]/8" : "bg-[#0e0e0e]/8"}`}>
+                <form onSubmit={onSignIn} className={`space-y-4 p-6 ${dk ? "bg-[#1e1e1c]" : "bg-white"}`}>
+                  <h2 className={`text-[13px] font-black ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>Sign in</h2>
+                  <Field label="Email"><input className={inputCls} placeholder="you@example.com" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} /></Field>
+                  <Field label="Password"><input type="password" className={inputCls} placeholder="Your password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} /></Field>
+                  <button disabled={authLoading} className="group inline-flex items-center gap-2 border border-[#e8320a] bg-[#e8320a] px-5 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-transparent hover:text-[#e8320a] disabled:opacity-55">
+                    {authLoading ? "Signing in…" : <><span>Sign in</span><ArrowRight size={10} weight="bold" className="transition-transform group-hover:translate-x-0.5" /></>}
+                  </button>
+                </form>
+                <form onSubmit={onReset} className={`space-y-4 p-6 ${dk ? "bg-[#252523]" : "bg-[#f8f6f0]"}`}>
+                  <h2 className={`text-[13px] font-black ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>Reset password</h2>
+                  <Field label="New password"><input type="password" className={inputCls} placeholder="Set a new password" value={resetValue} onChange={(e) => setResetValue(e.target.value)} /></Field>
+                  {authResetOtpRequested && (
+                    <Field label="Email OTP">
+                      <input
+                        className={inputCls}
+                        placeholder="6-digit code"
+                        inputMode="numeric"
+                        pattern="[0-9]{6}"
+                        value={authResetOtp}
+                        onChange={(e) => setAuthResetOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      />
+                    </Field>
+                  )}
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <button disabled={authLoading} className={`border px-4 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-55 ${dk ? "border-[#e8e6e0]/12 text-[#e8e6e0]/45 hover:border-[#e8e6e0]/28 hover:text-[#e8e6e0]" : "border-[#0e0e0e]/12 text-[#0e0e0e]/45 hover:border-[#0e0e0e]/28 hover:text-[#0e0e0e]"}`}>{authLoading ? "Resetting…" : authResetOtpRequested ? "Verify OTP & reset" : "Send OTP"}</button>
+                    <Link href="/sign-up" className={`font-mono text-[10px] uppercase tracking-widest transition-colors ${dk ? "text-[#e8e6e0]/30 hover:text-[#e8e6e0]" : "text-[#0e0e0e]/30 hover:text-[#0e0e0e]"}`}>Sign up →</Link>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </main>
+          {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+          <style>{`@keyframes toastIn { from { transform: translateX(-50%) translateY(12px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }`}</style>
+        </div>
+      </DarkCtx.Provider>
     );
   }
 
   // ── Section content map ─────────────────────────────────────────────────────
+  const dk = isDark;
+  const inputCls = getInputCls(dk);
   const sectionContent: Record<NavSection, React.ReactNode> = {
 
     profile: (
@@ -681,8 +724,8 @@ export function DashboardEditor() {
             <Field label="Graduation year *"><input className={inputCls} placeholder="2027" value={draft.gradYear} onChange={(e) => setDraft((p) => ({ ...p, gradYear: e.target.value }))} /></Field>
             <Field label="Public URL *" hint={`Your page → foliopage.app${publicPath}`} className="sm:col-span-2">
               <div className="flex">
-                <span className="flex shrink-0 items-center border border-r-0 border-[#0e0e0e]/12 bg-[#f8f6f0] px-3 font-mono text-[10px] text-[#0e0e0e]/32">foliopage.app/</span>
-                <input className="flex-1 border border-[#0e0e0e]/12 bg-white px-3 py-2.5 font-mono text-sm text-[#0e0e0e] outline-none transition-all focus:border-[#0e0e0e]/30 focus:ring-2 focus:ring-[#0e0e0e]/5" placeholder="your-name" value={draft.slug} onChange={(e) => setDraft((p) => ({ ...p, slug: slugifyName(e.target.value) }))} />
+                <span className={`flex shrink-0 items-center border border-r-0 px-3 font-mono text-[10px] ${dk ? "border-[#e8e6e0]/12 bg-[#252523] text-[#e8e6e0]/32" : "border-[#0e0e0e]/12 bg-[#f8f6f0] text-[#0e0e0e]/32"}`}>foliopage.app/</span>
+                <input className={`flex-1 border px-3 py-2.5 font-mono text-sm outline-none transition-all focus:ring-2 ${dk ? "border-[#e8e6e0]/12 bg-[#252523] text-[#e8e6e0] focus:border-[#e8e6e0]/30 focus:ring-[#e8e6e0]/5" : "border-[#0e0e0e]/12 bg-white text-[#0e0e0e] focus:border-[#0e0e0e]/30 focus:ring-[#0e0e0e]/5"}`} placeholder="your-name" value={draft.slug} onChange={(e) => setDraft((p) => ({ ...p, slug: slugifyName(e.target.value) }))} />
               </div>
               <p className={`font-mono text-[9px] ${slugAvailabilityClass}`}>
                 {slugAvailabilityMessage}
@@ -703,19 +746,19 @@ export function DashboardEditor() {
               {draft.profileImageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <div className="relative">
-                  <img src={draft.profileImageUrl} alt="Profile" className="h-20 w-20 border border-[#0e0e0e]/10 object-cover" />
+                  <img src={draft.profileImageUrl} alt="Profile" className={`h-20 w-20 border object-cover ${dk ? "border-[#e8e6e0]/10" : "border-[#0e0e0e]/10"}`} />
                   <button onClick={() => setDraft((p) => ({ ...p, profileImageUrl: "", profileImageVisible: false }))} className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center bg-[#0e0e0e] text-white transition-colors hover:bg-[#e8320a]"><X size={9} weight="bold" /></button>
                 </div>
               ) : (
-                <div className="flex h-20 w-20 items-center justify-center border-2 border-dashed border-[#0e0e0e]/12 bg-[#f8f6f0]">
-                  <User size={22} className="text-[#0e0e0e]/18" />
+                <div className={`flex h-20 w-20 items-center justify-center border-2 border-dashed ${dk ? "border-[#e8e6e0]/12 bg-[#252523]" : "border-[#0e0e0e]/12 bg-[#f8f6f0]"}`}>
+                  <User size={22} className={dk ? "text-[#e8e6e0]/18" : "text-[#0e0e0e]/18"} />
                 </div>
               )}
             </div>
             <div className="flex-1 space-y-3">
               <label className="block cursor-pointer">
                 <Label>Upload file (max 5MB)</Label>
-                <input type="file" accept="image/*" className="mt-1.5 block text-xs text-[#0e0e0e]/45 file:mr-3 file:cursor-pointer file:border file:border-[#0e0e0e]/12 file:bg-[#f8f6f0] file:px-3 file:py-1.5 file:font-mono file:text-[9px] file:uppercase file:tracking-widest file:text-[#0e0e0e]/45 file:transition-colors file:hover:border-[#0e0e0e]/22 file:hover:text-[#0e0e0e]/70" onChange={(e) => void onProfileImagePick(e.target.files?.[0])} />
+                <input type="file" accept="image/*" className={`mt-1.5 block text-xs file:mr-3 file:cursor-pointer file:border file:px-3 file:py-1.5 file:font-mono file:text-[9px] file:uppercase file:tracking-widest file:transition-colors ${dk ? "text-[#e8e6e0]/45 file:border-[#e8e6e0]/12 file:bg-[#252523] file:text-[#e8e6e0]/45 file:hover:border-[#e8e6e0]/22 file:hover:text-[#e8e6e0]/70" : "text-[#0e0e0e]/45 file:border-[#0e0e0e]/12 file:bg-[#f8f6f0] file:text-[#0e0e0e]/45 file:hover:border-[#0e0e0e]/22 file:hover:text-[#0e0e0e]/70"}`} onChange={(e) => void onProfileImagePick(e.target.files?.[0])} />
               </label>
               <Field label="Or paste URL"><input className={inputCls} placeholder="https://example.com/photo.jpg" value={draft.profileImageUrl} onChange={(e) => setDraft((p) => ({ ...p, profileImageUrl: e.target.value }))} /></Field>
               <Toggle checked={draft.profileImageVisible} onChange={(v) => setDraft((p) => ({ ...p, profileImageVisible: v }))} label="Show photo on public page" />
@@ -731,27 +774,27 @@ export function DashboardEditor() {
           <CardHeader title="Your resume" subtitle="PDF only, max 5MB. Recruiters get a prominent one-click download." />
           <div className="p-5">
             {draft.resumeFileName ? (
-              <div className="flex items-center justify-between gap-4 border border-[#0e0e0e]/8 bg-[#f8f6f0] px-4 py-4">
+              <div className={`flex items-center justify-between gap-4 border px-4 py-4 ${dk ? "border-[#e8e6e0]/8 bg-[#252523]" : "border-[#0e0e0e]/8 bg-[#f8f6f0]"}`}>
                 <div className="flex items-center gap-3">
                   <FilePdf size={24} weight="fill" className="shrink-0 text-[#e8320a]" />
                   <div>
-                    <p className="text-[13px] font-black text-[#0e0e0e]">{draft.resumeFileName}</p>
-                    <p className="font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/32">{draft.resumeFileSizeKb} KB · {draft.resumeUpdatedAt}</p>
+                    <p className={`text-[13px] font-black ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>{draft.resumeFileName}</p>
+                    <p className={`font-mono text-[9px] uppercase tracking-widest ${dk ? "text-[#e8e6e0]/32" : "text-[#0e0e0e]/32"}`}>{draft.resumeFileSizeKb} KB · {draft.resumeUpdatedAt}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="cursor-pointer border border-[#0e0e0e]/10 px-3 py-1.5 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/42 transition-all hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]">
+                  <label className={`cursor-pointer border px-3 py-1.5 font-mono text-[9px] uppercase tracking-widest transition-all ${dk ? "border-[#e8e6e0]/10 text-[#e8e6e0]/42 hover:border-[#e8e6e0]/22 hover:text-[#e8e6e0]" : "border-[#0e0e0e]/10 text-[#0e0e0e]/42 hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]"}`}>
                     Replace<input type="file" accept="application/pdf" className="sr-only" onChange={(e) => onResumePick(e.target.files?.[0])} />
                   </label>
-                  <button onClick={() => { setResumeRemoved(true); setPendingResumeFile(null); setDraft((p) => ({ ...p, resumeFileName: "", resumeFileSizeKb: 0, published: false })); }} className="border border-[#0e0e0e]/10 px-3 py-1.5 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/32 transition-all hover:border-[#e8320a]/25 hover:text-[#e8320a]">Remove</button>
+                  <button onClick={() => { setResumeRemoved(true); setPendingResumeFile(null); setDraft((p) => ({ ...p, resumeFileName: "", resumeFileSizeKb: 0, published: false })); }} className={`border px-3 py-1.5 font-mono text-[9px] uppercase tracking-widest transition-all hover:border-[#e8320a]/25 hover:text-[#e8320a] ${dk ? "border-[#e8e6e0]/10 text-[#e8e6e0]/32" : "border-[#0e0e0e]/10 text-[#0e0e0e]/32"}`}>Remove</button>
                 </div>
               </div>
             ) : (
-              <label className="group flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed border-[#0e0e0e]/10 py-14 text-center transition-all hover:border-[#e8320a]/30 hover:bg-[#e8320a]/[0.018]">
-                <FilePdf size={32} className="text-[#0e0e0e]/18 transition-colors group-hover:text-[#e8320a]/40" />
+              <label className={`group flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed py-14 text-center transition-all hover:border-[#e8320a]/30 hover:bg-[#e8320a]/[0.018] ${dk ? "border-[#e8e6e0]/10" : "border-[#0e0e0e]/10"}`}>
+                <FilePdf size={32} className={`transition-colors group-hover:text-[#e8320a]/40 ${dk ? "text-[#e8e6e0]/18" : "text-[#0e0e0e]/18"}`} />
                 <div>
-                  <p className="text-sm font-black text-[#0e0e0e]/45 group-hover:text-[#0e0e0e]/65">Drop your resume or <span className="text-[#e8320a]">browse</span></p>
-                  <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/22">PDF only · max 5 MB</p>
+                  <p className={`text-sm font-black group-hover:opacity-80 ${dk ? "text-[#e8e6e0]/45" : "text-[#0e0e0e]/45"}`}>Drop your resume or <span className="text-[#e8320a]">browse</span></p>
+                  <p className={`mt-1 font-mono text-[9px] uppercase tracking-widest ${dk ? "text-[#e8e6e0]/22" : "text-[#0e0e0e]/22"}`}>PDF only · max 5 MB</p>
                 </div>
                 <input type="file" accept="application/pdf" className="sr-only" onChange={(e) => onResumePick(e.target.files?.[0])} />
               </label>
@@ -766,14 +809,14 @@ export function DashboardEditor() {
               { val: "without_preview", title: "Download card", desc: "Clean name + file size + download button.", badge: "Recommended" },
               { val: "with_preview", title: "Embedded preview", desc: "Full PDF viewer inline + download button.", badge: null },
             ].map((opt) => (
-              <label key={opt.val} className={["flex cursor-pointer gap-3 border p-4 transition-all", draft.resumeBlockType === opt.val ? "border-[#0e0e0e]/22 bg-[#0e0e0e]/[0.025]" : "border-[#0e0e0e]/7 bg-white hover:border-[#0e0e0e]/14"].join(" ")}>
-                <div className={["mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border transition-all", draft.resumeBlockType === opt.val ? "border-[#0e0e0e] bg-[#0e0e0e]" : "border-[#0e0e0e]/18"].join(" ")}>
-                  {draft.resumeBlockType === opt.val && <span className="h-2 w-2 bg-white" />}
+              <label key={opt.val} className={["flex cursor-pointer gap-3 border p-4 transition-all", draft.resumeBlockType === opt.val ? (dk ? "border-[#e8e6e0]/22 bg-[#e8e6e0]/[0.04]" : "border-[#0e0e0e]/22 bg-[#0e0e0e]/[0.025]") : (dk ? "border-[#e8e6e0]/7 bg-[#252523] hover:border-[#e8e6e0]/14" : "border-[#0e0e0e]/7 bg-white hover:border-[#0e0e0e]/14")].join(" ")}>
+                <div className={["mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border transition-all", draft.resumeBlockType === opt.val ? (dk ? "border-[#e8e6e0] bg-[#e8e6e0]" : "border-[#0e0e0e] bg-[#0e0e0e]") : (dk ? "border-[#e8e6e0]/18" : "border-[#0e0e0e]/18")].join(" ")}>
+                  {draft.resumeBlockType === opt.val && <span className={`h-2 w-2 ${dk ? "bg-[#111110]" : "bg-white"}`} />}
                 </div>
                 <div>
-                  <p className="text-[13px] font-black text-[#0e0e0e]">{opt.title}</p>
-                  <p className="mt-0.5 text-[11px] text-[#0e0e0e]/42">{opt.desc}</p>
-                  {opt.badge && <span className="mt-2 inline-block border border-[#0e0e0e]/8 px-2 py-0.5 font-mono text-[8px] uppercase tracking-widest text-[#0e0e0e]/32">{opt.badge}</span>}
+                  <p className={`text-[13px] font-black ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>{opt.title}</p>
+                  <p className={`mt-0.5 text-[11px] ${dk ? "text-[#e8e6e0]/42" : "text-[#0e0e0e]/42"}`}>{opt.desc}</p>
+                  {opt.badge && <span className={`mt-2 inline-block border px-2 py-0.5 font-mono text-[8px] uppercase tracking-widest ${dk ? "border-[#e8e6e0]/8 text-[#e8e6e0]/32" : "border-[#0e0e0e]/8 text-[#0e0e0e]/32"}`}>{opt.badge}</span>}
                 </div>
                 <input type="radio" name="resume-block-type" className="sr-only" checked={draft.resumeBlockType === opt.val} onChange={() => setDraft((p) => ({ ...p, resumeBlockType: opt.val as "without_preview" | "with_preview" }))} />
               </label>
@@ -785,22 +828,22 @@ export function DashboardEditor() {
           <CardHeader title="Skills" subtitle="Tag your stack. Recruiters scan these fast." />
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             {skillSections.map((sec) => (
-              <div key={sec.category} className="border border-[#0e0e0e]/7 bg-[#f8f6f0] p-4">
-                <p className="mb-3 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#0e0e0e]/38">{sec.title}</p>
+              <div key={sec.category} className={`border p-4 ${dk ? "border-[#e8e6e0]/7 bg-[#252523]" : "border-[#0e0e0e]/7 bg-[#f8f6f0]"}`}>
+                <p className={`mb-3 font-mono text-[9px] font-bold uppercase tracking-[0.2em] ${dk ? "text-[#e8e6e0]/38" : "text-[#0e0e0e]/38"}`}>{sec.title}</p>
                 <div className="flex gap-2">
                   <input
-                    className="min-w-0 flex-1 border border-[#0e0e0e]/10 bg-white px-2.5 py-2 text-xs outline-none placeholder-[#0e0e0e]/22 transition-all focus:border-[#0e0e0e]/28 focus:ring-1 focus:ring-[#0e0e0e]/6"
+                    className={`min-w-0 flex-1 border px-2.5 py-2 text-xs outline-none transition-all focus:ring-1 ${dk ? "border-[#e8e6e0]/10 bg-[#1e1e1c] text-[#e8e6e0] placeholder-[#e8e6e0]/22 focus:border-[#e8e6e0]/28 focus:ring-[#e8e6e0]/6" : "border-[#0e0e0e]/10 bg-white text-[#0e0e0e] placeholder-[#0e0e0e]/22 focus:border-[#0e0e0e]/28 focus:ring-[#0e0e0e]/6"}`}
                     placeholder={sec.placeholder}
                     value={skillInputs[sec.category]}
                     onChange={(e) => setSkillInputs((p) => ({ ...p, [sec.category]: e.target.value }))}
                     onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === "Enter") { e.preventDefault(); addSkill(sec.category, skillInputs[sec.category]); } }}
                   />
-                  <button onClick={() => addSkill(sec.category, skillInputs[sec.category])} className="border border-[#0e0e0e]/10 px-3 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/40 transition-all hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]">Add</button>
+                  <button onClick={() => addSkill(sec.category, skillInputs[sec.category])} className={`border px-3 font-mono text-[9px] uppercase tracking-widest transition-all ${dk ? "border-[#e8e6e0]/10 text-[#e8e6e0]/40 hover:border-[#e8e6e0]/22 hover:text-[#e8e6e0]" : "border-[#0e0e0e]/10 text-[#0e0e0e]/40 hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]"}`}>Add</button>
                 </div>
                 {skillsByCategory[sec.category].length > 0 && (
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
                     {skillsByCategory[sec.category].map((skill) => (
-                      <button key={skill} onClick={() => removeSkill(sec.category, skill)} className="group flex items-center gap-1 border border-[#0e0e0e]/8 bg-white px-2.5 py-1 font-mono text-[9px] text-[#0e0e0e]/55 transition-all hover:border-[#e8320a]/22 hover:text-[#e8320a]">
+                      <button key={skill} onClick={() => removeSkill(sec.category, skill)} className={`group flex items-center gap-1 border px-2.5 py-1 font-mono text-[9px] transition-all hover:border-[#e8320a]/22 hover:text-[#e8320a] ${dk ? "border-[#e8e6e0]/8 bg-[#1e1e1c] text-[#e8e6e0]/55" : "border-[#0e0e0e]/8 bg-white text-[#0e0e0e]/55"}`}>
                         {skill}<X size={8} className="opacity-35 group-hover:opacity-100" />
                       </button>
                     ))}
@@ -808,7 +851,7 @@ export function DashboardEditor() {
                 )}
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {sec.suggestions.filter((s) => !skillsByCategory[sec.category].some((e) => e.toLowerCase() === s.toLowerCase())).map((s) => (
-                    <button key={s} onClick={() => addSkill(sec.category, s)} className="border border-dashed border-[#0e0e0e]/8 px-2.5 py-1 font-mono text-[9px] text-[#0e0e0e]/28 transition-all hover:border-[#0e0e0e]/18 hover:text-[#0e0e0e]/52">+ {s}</button>
+                    <button key={s} onClick={() => addSkill(sec.category, s)} className={`border border-dashed px-2.5 py-1 font-mono text-[9px] transition-all ${dk ? "border-[#e8e6e0]/8 text-[#e8e6e0]/28 hover:border-[#e8e6e0]/18 hover:text-[#e8e6e0]/52" : "border-[#0e0e0e]/8 text-[#0e0e0e]/28 hover:border-[#0e0e0e]/18 hover:text-[#0e0e0e]/52"}`}>+ {s}</button>
                   ))}
                 </div>
               </div>
@@ -832,17 +875,17 @@ export function DashboardEditor() {
 
         <Card>
           <CardHeader title="Social links" subtitle="Add links and choose which ones are visible." />
-          <div className="divide-y divide-[#0e0e0e]/5">
+          <div className={`divide-y ${dk ? "divide-[#e8e6e0]/5" : "divide-[#0e0e0e]/5"}`}>
             {([
               { key: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/in/handle", Icon: LinkedinLogo, url: draft.linkedinUrl, visible: draft.linkedinVisible },
               { key: "github", label: "GitHub", placeholder: "https://github.com/handle", Icon: GithubLogo, url: draft.githubUrl, visible: draft.githubVisible },
               { key: "twitter", label: "Twitter / X", placeholder: "https://x.com/handle", Icon: TwitterLogo, url: draft.twitterUrl, visible: draft.twitterVisible },
               { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/handle", Icon: InstagramLogo, url: draft.instagramUrl, visible: draft.instagramVisible },
             ] as const).map((s) => (
-              <div key={s.key} className="flex items-center gap-4 px-5 py-4">
-                <s.Icon size={16} className="shrink-0 text-[#0e0e0e]/28" />
-                <div className="flex-1">
-                  <p className="mb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#0e0e0e]/35">{s.label}</p>
+              <div key={s.key} className="flex items-center gap-3 px-5 py-4">
+                <s.Icon size={16} className={`shrink-0 ${dk ? "text-[#e8e6e0]/28" : "text-[#0e0e0e]/28"}`} />
+                <div className="flex-1 min-w-0">
+                  <p className={`mb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.2em] ${dk ? "text-[#e8e6e0]/35" : "text-[#0e0e0e]/35"}`}>{s.label}</p>
                   <input className={inputCls} placeholder={s.placeholder} value={s.url} onChange={(e) => setDraft((p) => ({ ...p, [`${s.key}Url`]: e.target.value }))} />
                 </div>
                 <Toggle checked={s.visible} onChange={(v) => setDraft((p) => ({ ...p, [`${s.key}Visible`]: v }))} />
@@ -861,7 +904,7 @@ export function DashboardEditor() {
               title={project.title || `Project ${idx + 1}`}
               subtitle={project.summary || "Add title and summary to activate this project."}
               action={
-                <button onClick={() => setDraft((p) => ({ ...p, projects: p.projects.filter((_, i) => i !== idx) }))} className="flex items-center gap-1.5 border border-[#0e0e0e]/8 px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/32 transition-all hover:border-[#e8320a]/22 hover:text-[#e8320a]">
+                <button onClick={() => setDraft((p) => ({ ...p, projects: p.projects.filter((_, i) => i !== idx) }))} className={`flex items-center gap-1.5 border px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-widest transition-all hover:border-[#e8320a]/22 hover:text-[#e8320a] ${dk ? "border-[#e8e6e0]/8 text-[#e8e6e0]/32" : "border-[#0e0e0e]/8 text-[#0e0e0e]/32"}`}>
                   <Trash size={9} />Remove
                 </button>
               }
@@ -890,13 +933,13 @@ export function DashboardEditor() {
         ))}
 
         {draft.projects.length < maxProjects ? (
-          <button onClick={() => setDraft((p) => ({ ...p, projects: [...p.projects, createProjectDraft(`project-${p.projects.length + 1}`)] }))} className="group flex w-full items-center justify-center gap-2.5 border-2 border-dashed border-[#0e0e0e]/10 py-5 font-mono text-[10px] uppercase tracking-widest text-[#0e0e0e]/32 transition-all hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]/55">
+          <button onClick={() => setDraft((p) => ({ ...p, projects: [...p.projects, createProjectDraft(`project-${p.projects.length + 1}`)] }))} className={`group flex w-full items-center justify-center gap-2.5 border-2 border-dashed py-5 font-mono text-[10px] uppercase tracking-widest transition-all ${dk ? "border-[#e8e6e0]/10 text-[#e8e6e0]/32 hover:border-[#e8e6e0]/22 hover:text-[#e8e6e0]/55" : "border-[#0e0e0e]/10 text-[#0e0e0e]/32 hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]/55"}`}>
             <Plus size={12} className="transition-transform duration-200 group-hover:rotate-90" />
             Add project <span className="opacity-50">({draft.projects.length}/{maxProjects})</span>
           </button>
         ) : (
-          <div className="border border-[#0e0e0e]/7 bg-[#f8f6f0] px-5 py-4">
-            <p className="text-xs text-[#0e0e0e]/48">Limit of <strong>{maxProjects}</strong> projects reached.{plans?.planType === "free" && <> <button onClick={() => setActiveSection("settings")} className="font-bold text-[#e8320a] underline underline-offset-2">Upgrade to Member</button> for unlimited.</>}</p>
+          <div className={`border px-5 py-4 ${dk ? "border-[#e8e6e0]/7 bg-[#252523]" : "border-[#0e0e0e]/7 bg-[#f8f6f0]"}`}>
+            <p className={`text-xs ${dk ? "text-[#e8e6e0]/48" : "text-[#0e0e0e]/48"}`}>Limit of <strong>{maxProjects}</strong> projects reached.{plans?.planType === "free" && <> <button onClick={() => setActiveSection("settings")} className="font-bold text-[#e8320a] underline underline-offset-2">Upgrade to Member</button> for unlimited.</>}</p>
           </div>
         )}
       </div>
@@ -923,13 +966,28 @@ export function DashboardEditor() {
               </select>
             </Field>
             <div className="flex flex-wrap gap-2 pt-1">
-              <button onClick={resetToNew} className="border border-[#0e0e0e]/10 px-4 py-2 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/42 transition-all hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]">+ New draft</button>
+              <button onClick={resetToNew} className={`border px-4 py-2 font-mono text-[9px] uppercase tracking-widest transition-all ${dk ? "border-[#e8e6e0]/10 text-[#e8e6e0]/42 hover:border-[#e8e6e0]/22 hover:text-[#e8e6e0]" : "border-[#0e0e0e]/10 text-[#0e0e0e]/42 hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]"}`}>+ New draft</button>
               {activeProfileId && (
-                <button onClick={deleteActiveProfile} disabled={saving} className="flex items-center gap-1.5 border border-[#0e0e0e]/8 px-4 py-2 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/32 transition-all hover:border-[#e8320a]/22 hover:text-[#e8320a] disabled:opacity-50">
+                <button onClick={deleteActiveProfile} disabled={saving} className={`flex items-center gap-1.5 border px-4 py-2 font-mono text-[9px] uppercase tracking-widest transition-all hover:border-[#e8320a]/22 hover:text-[#e8320a] disabled:opacity-50 ${dk ? "border-[#e8e6e0]/8 text-[#e8e6e0]/32" : "border-[#0e0e0e]/8 text-[#0e0e0e]/32"}`}>
                   <Trash size={10} />Delete this profile
                 </button>
               )}
             </div>
+          </div>
+        </Card>
+
+        {/* Dark mode preference */}
+        <Card>
+          <CardHeader title="Appearance" subtitle="Customise how the dashboard looks." />
+          <div className="flex items-center justify-between gap-4 p-5">
+            <div className="flex items-center gap-3">
+              {dk ? <Moon size={16} className="text-[#e8e6e0]/50" /> : <Sun size={16} className="text-[#0e0e0e]/40" />}
+              <div>
+                <p className={`text-sm font-bold ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>{dk ? "Dark mode" : "Light mode"}</p>
+                <p className={`font-mono text-[9px] uppercase tracking-widest ${dk ? "text-[#e8e6e0]/32" : "text-[#0e0e0e]/32"}`}>Dashboard theme preference</p>
+              </div>
+            </div>
+            <Toggle checked={isDark} onChange={toggleDark} />
           </div>
         </Card>
 
@@ -938,11 +996,11 @@ export function DashboardEditor() {
           <div className="p-5 space-y-4">
             {plans?.planType === "free" && (
               <div className="border border-[#e8320a]/12 bg-[#e8320a]/[0.035] px-4 py-3">
-                <p className="text-xs font-black text-[#0e0e0e]/55">Upgrade for unlimited projects, custom domain, and full analytics.</p>
+                <p className={`text-xs font-black ${dk ? "text-[#e8e6e0]/55" : "text-[#0e0e0e]/55"}`}>Upgrade for unlimited projects, custom domain, and full analytics.</p>
               </div>
             )}
             <div className="flex flex-wrap gap-2">
-              <div className="border border-[#0e0e0e] bg-[#0e0e0e] px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-white">
+              <div className={`border px-3 py-2 font-mono text-[9px] uppercase tracking-widest ${dk ? "border-[#e8e6e0] bg-[#e8e6e0] text-[#111110]" : "border-[#0e0e0e] bg-[#0e0e0e] text-white"}`}>
                 {`Member - Rs.${plans?.pricing.proMonthly ?? 499}/mo`}
               </div>
             </div>
@@ -956,10 +1014,10 @@ export function DashboardEditor() {
           <CardHeader title="Account" />
           <div className="flex items-center justify-between gap-4 p-5">
             <div>
-              <p className="text-sm font-bold text-[#0e0e0e]">{user.email}</p>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/32">{plans?.planType === "pro" ? "Member plan" : "Free plan"} · {profiles.length} profile{profiles.length !== 1 ? "s" : ""}</p>
+              <p className={`text-sm font-bold ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>{user.email}</p>
+              <p className={`font-mono text-[9px] uppercase tracking-widest ${dk ? "text-[#e8e6e0]/32" : "text-[#0e0e0e]/32"}`}>{plans?.planType === "pro" ? "Member plan" : "Free plan"} · {profiles.length} profile{profiles.length !== 1 ? "s" : ""}</p>
             </div>
-            <button onClick={signOut} className="flex items-center gap-1.5 border border-[#0e0e0e]/8 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/38 transition-all hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]">
+            <button onClick={signOut} className={`flex items-center gap-1.5 border px-3 py-2 font-mono text-[9px] uppercase tracking-widest transition-all ${dk ? "border-[#e8e6e0]/8 text-[#e8e6e0]/38 hover:border-[#e8e6e0]/22 hover:text-[#e8e6e0]" : "border-[#0e0e0e]/8 text-[#0e0e0e]/38 hover:border-[#0e0e0e]/22 hover:text-[#0e0e0e]"}`}>
               <SignOut size={11} />Sign out
             </button>
           </div>
@@ -970,252 +1028,311 @@ export function DashboardEditor() {
 
   // ── Dashboard render ────────────────────────────────────────────────────────
   return (
-    <div className="flex min-h-dvh bg-[#f0ece2] font-[family-name:var(--font-cabinet)] text-[#0e0e0e]">
+    <DarkCtx.Provider value={isDark}>
+      <div className={`flex min-h-dvh font-[family-name:var(--font-cabinet)] transition-colors duration-300 ${dk ? "bg-[#111110] text-[#e8e6e0]" : "bg-[#f0ece2] text-[#0e0e0e]"}`}>
 
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-[#0e0e0e]/25 backdrop-blur-[2px] lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+        {/* Mobile overlay - kept for potential future use */}
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
-      <aside className={[
-        "fixed left-0 top-0 z-50 flex h-dvh w-60 flex-col overflow-hidden",
-        "border-r border-[#0e0e0e]/8 bg-[#eceae0]",
-        "transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-        "lg:sticky lg:translate-x-0",
-        sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
-      ].join(" ")}>
+        {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
+        <aside className={[
+          "fixed left-0 top-0 z-50 flex h-dvh w-60 flex-col overflow-hidden",
+          dk ? "border-r border-[#e8e6e0]/8 bg-[#1a1a18]" : "border-r border-[#0e0e0e]/8 bg-[#eceae0]",
+          "transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+          "lg:sticky lg:translate-x-0 -translate-x-full",
+        ].join(" ")}>
 
-        {/* Brand row */}
-        <div className="flex items-center justify-between border-b border-[#0e0e0e]/8 px-5 py-4">
-          <Link href="/" className="text-[13px] font-black tracking-tight">folio<span className="text-[#e8320a]">page</span></Link>
-          <button className="lg:hidden p-1 text-[#0e0e0e]/35 hover:text-[#0e0e0e] transition-colors" onClick={() => setSidebarOpen(false)}>
-            <X size={13} weight="bold" />
-          </button>
-        </div>
+          {/* Brand row */}
+          <div className={`flex items-center justify-between border-b px-5 py-4 ${dk ? "border-[#e8e6e0]/8" : "border-[#0e0e0e]/8"}`}>
+            <Link href="/" className="text-[13px] font-black tracking-tight">folio<span className="text-[#e8320a]">page</span></Link>
+            <button onClick={toggleDark} className={`p-1.5 transition-colors ${dk ? "text-[#e8e6e0]/35 hover:text-[#e8e6e0]" : "text-[#0e0e0e]/30 hover:text-[#0e0e0e]"}`} aria-label="Toggle dark mode">
+              {dk ? <Sun size={13} /> : <Moon size={13} />}
+            </button>
+          </div>
 
-        {/* Profile card */}
-        <div className="border-b border-[#0e0e0e]/8 px-4 py-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden border border-[#0e0e0e]/10 bg-[#0e0e0e]">
-              {draft.profileImageUrl
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={draft.profileImageUrl} alt="" className="h-full w-full object-cover" />
-                : <span className="text-xs font-black text-white">{(draft.fullName || "?")[0]?.toUpperCase()}</span>
-              }
+          {/* Profile card */}
+          <div className={`border-b px-4 py-4 space-y-3 ${dk ? "border-[#e8e6e0]/8" : "border-[#0e0e0e]/8"}`}>
+            <div className="flex items-center gap-3">
+              <div className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden border ${dk ? "border-[#e8e6e0]/10 bg-[#e8e6e0]" : "border-[#0e0e0e]/10 bg-[#0e0e0e]"}`}>
+                {draft.profileImageUrl
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={draft.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                  : <span className={`text-xs font-black ${dk ? "text-[#111110]" : "text-white"}`}>{(draft.fullName || "?")[0]?.toUpperCase()}</span>
+                }
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={`truncate text-[12px] font-black ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>{draft.fullName || "Untitled profile"}</p>
+                <p className={`truncate font-mono text-[8px] uppercase tracking-widest ${dk ? "text-[#e8e6e0]/32" : "text-[#0e0e0e]/32"}`}>{publicPath}</p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-black text-[#0e0e0e]">{draft.fullName || "Untitled profile"}</p>
-              <p className="truncate font-mono text-[8px] uppercase tracking-widest text-[#0e0e0e]/32">{publicPath}</p>
+
+            {/* Completion progress */}
+            <div className="flex items-center gap-3">
+              <ProgressRing pct={completionPct} size={34} />
+              <div>
+                <p className={`text-[11px] font-black ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>{completionPct}% ready</p>
+                <p className={`font-mono text-[8px] ${dk ? "text-[#e8e6e0]/32" : "text-[#0e0e0e]/32"}`}>{completionSteps.filter((s) => s.done).length} of {completionSteps.length} done</p>
+              </div>
+            </div>
+
+            {/* Progress steps */}
+            <div className="space-y-1">
+              {completionSteps.map((step) => (
+                <button key={step.label} onClick={() => { setActiveSection(step.section); }} className="flex w-full items-center gap-2 text-left transition-colors hover:opacity-80">
+                  {step.done
+                    ? <CheckCircle size={11} weight="fill" className="shrink-0 text-emerald-500" />
+                    : <Circle size={11} className={`shrink-0 ${dk ? "text-[#e8e6e0]/22" : "text-[#0e0e0e]/22"}`} />}
+                  <span className={["font-mono text-[8px] uppercase tracking-widest", step.done ? (dk ? "text-[#e8e6e0]/55" : "text-[#0e0e0e]/55") : (dk ? "text-[#e8e6e0]/30" : "text-[#0e0e0e]/30")].join(" ")}>{step.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Completion progress */}
-          <div className="flex items-center gap-3">
-            <ProgressRing pct={completionPct} size={34} />
-            <div>
-              <p className="text-[11px] font-black text-[#0e0e0e]">{completionPct}% ready</p>
-              <p className="font-mono text-[8px] text-[#0e0e0e]/32">{completionSteps.filter((s) => s.done).length} of {completionSteps.length} done</p>
-            </div>
-          </div>
+          {/* Nav items */}
+          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
+            {NAV_ITEMS.map(({ id, label, Icon }) => {
+              const active = activeSection === id;
+              const done = sectionDone[id];
+              return (
+                <button
+                  key={id}
+                  onClick={() => { setActiveSection(id); }}
+                  className={[
+                    "group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-all duration-100",
+                    active
+                      ? (dk ? "bg-[#e8e6e0] text-[#111110]" : "bg-[#0e0e0e] text-white")
+                      : (dk ? "text-[#e8e6e0]/50 hover:bg-[#e8e6e0]/6 hover:text-[#e8e6e0]/80" : "text-[#0e0e0e]/50 hover:bg-[#0e0e0e]/6 hover:text-[#0e0e0e]/80"),
+                  ].join(" ")}
+                >
+                  <Icon size={14} weight={active ? "fill" : "regular"} className={active ? (dk ? "text-[#111110]/80" : "text-white/80") : (dk ? "text-[#e8e6e0]/30 group-hover:text-[#e8e6e0]/55" : "text-[#0e0e0e]/30 group-hover:text-[#0e0e0e]/55")} />
+                  <span className="flex-1 text-[12px] font-bold tracking-tight">{label}</span>
+                  {done === true && <CheckCircle size={11} weight="fill" className={active ? "text-emerald-400" : "text-emerald-500"} />}
+                  {done === false && <Circle size={10} className={active ? (dk ? "text-[#111110]/28" : "text-white/28") : (dk ? "text-[#e8e6e0]/18" : "text-[#0e0e0e]/18")} />}
+                </button>
+              );
+            })}
+          </nav>
 
-          {/* Progress steps */}
-          <div className="space-y-1">
-            {completionSteps.map((step) => (
-              <button key={step.label} onClick={() => { setActiveSection(step.section); setSidebarOpen(false); }} className="flex w-full items-center gap-2 text-left transition-colors hover:opacity-80">
-                {step.done
-                  ? <CheckCircle size={11} weight="fill" className="shrink-0 text-emerald-500" />
-                  : <Circle size={11} className="shrink-0 text-[#0e0e0e]/22" />}
-                <span className={["font-mono text-[8px] uppercase tracking-widest", step.done ? "text-[#0e0e0e]/55" : "text-[#0e0e0e]/30"].join(" ")}>{step.label}</span>
+          {/* Bottom actions */}
+          <div className={`border-t p-3 space-y-2 ${dk ? "border-[#e8e6e0]/8" : "border-[#0e0e0e]/8"}`}>
+            {/* Publish toggle */}
+            <div className={[
+              "flex items-center justify-between gap-2 border px-3 py-2.5 transition-colors",
+              draft.published ? "border-emerald-300/50 bg-emerald-50" : (dk ? "border-[#e8e6e0]/7 bg-[#252523]" : "border-[#0e0e0e]/7 bg-white"),
+            ].join(" ")}>
+              <div className="flex items-center gap-2">
+                <span className={["h-2 w-2 rounded-full transition-colors", draft.published ? "animate-pulse bg-emerald-500" : (dk ? "bg-[#e8e6e0]/18" : "bg-[#0e0e0e]/18")].join(" ")} />
+                <span className={["font-mono text-[9px] font-black uppercase tracking-widest", draft.published ? "text-emerald-700" : (dk ? "text-[#e8e6e0]/42" : "text-[#0e0e0e]/42")].join(" ")}>
+                  {draft.published ? "Live" : "Draft"}
+                </span>
+              </div>
+              <Toggle checked={draft.published} onChange={() => void togglePublish()} />
+            </div>
+
+            {/* Save */}
+            <button
+              onClick={save}
+              disabled={saving}
+              className={[
+                "group flex w-full items-center justify-center gap-2 border py-2.5 font-mono text-[9px] font-black uppercase tracking-widest transition-all duration-150 disabled:opacity-50",
+                saving ? (dk ? "border-[#e8e6e0]/8 bg-[#e8e6e0]/[0.04] text-[#e8e6e0]/38" : "border-[#0e0e0e]/8 bg-[#0e0e0e]/[0.04] text-[#0e0e0e]/38") : "border-[#e8320a] bg-[#e8320a] text-white hover:bg-transparent hover:text-[#e8320a]",
+              ].join(" ")}
+            >
+              <FloppyDisk size={10} weight="fill" className={saving ? "animate-[spin_1.5s_linear_infinite]" : ""} />
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+
+            {/* View live link */}
+            {draft.published && (
+              <Link href={publicPath} target="_blank" className={`flex items-center justify-center gap-1.5 font-mono text-[8px] uppercase tracking-widest transition-colors py-1 ${dk ? "text-[#e8e6e0]/30 hover:text-[#e8e6e0]" : "text-[#0e0e0e]/30 hover:text-[#0e0e0e]"}`}>
+                <ArrowSquareOut size={9} />View live page
+              </Link>
+            )}
+
+            <p className={`hidden text-center font-mono text-[8px] pt-0.5 lg:block ${dk ? "text-[#e8e6e0]/18" : "text-[#0e0e0e]/18"}`}>⌘S to save anytime</p>
+          </div>
+        </aside>
+
+        {/* ── Main panel ──────────────────────────────────────────────────────── */}
+        <div className="flex min-w-0 flex-1 flex-col">
+
+          {/* Top bar */}
+          <header className={`sticky top-0 z-30 flex items-center justify-between gap-4 border-b px-4 py-3 backdrop-blur-md sm:px-6 ${dk ? "border-[#e8e6e0]/7 bg-[#111110]/96" : "border-[#0e0e0e]/7 bg-[#f0ece2]/96"}`}>
+            {/* Mobile: brand · Desktop: breadcrumb */}
+            <div className="flex items-center gap-3">
+              <Link href="/" className="text-[13px] font-black tracking-tight lg:hidden">folio<span className="text-[#e8320a]">page</span></Link>
+              <nav className={`hidden lg:flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] ${dk ? "text-[#e8e6e0]/30" : "text-[#0e0e0e]/30"}`}>
+                <House size={10} />
+                <CaretRight size={7} className="opacity-35" />
+                <span className={`font-bold ${dk ? "text-[#e8e6e0]/55" : "text-[#0e0e0e]/55"}`}>{NAV_ITEMS.find((n) => n.id === activeSection)?.label}</span>
+              </nav>
+              <span className={`lg:hidden font-mono text-[9px] font-bold uppercase tracking-[0.18em] ${dk ? "text-[#e8e6e0]/45" : "text-[#0e0e0e]/45"}`}>
+                {NAV_ITEMS.find((n) => n.id === activeSection)?.label}
+              </span>
+            </div>
+
+            {/* Mobile: status pill + save + dark toggle */}
+            <div className="flex items-center gap-2 lg:hidden">
+              <button
+                type="button"
+                onClick={() => void togglePublish()}
+                className={["flex items-center gap-1.5 border px-2.5 py-1.5 transition-colors active:scale-95", draft.published ? "border-emerald-300/50 bg-emerald-50 text-emerald-700" : (dk ? "border-[#e8e6e0]/8 bg-[#1e1e1c] text-[#e8e6e0]/38" : "border-[#0e0e0e]/8 bg-white text-[#0e0e0e]/38")].join(" ")}
+              >
+                <span className={["h-1.5 w-1.5 rounded-full", draft.published ? "animate-pulse bg-emerald-500" : (dk ? "bg-[#e8e6e0]/18" : "bg-[#0e0e0e]/18")].join(" ")} />
+                <span className="font-mono text-[8px] font-black uppercase tracking-widest">{draft.published ? "Live" : "Draft"}</span>
               </button>
-            ))}
-          </div>
+              <button
+                onClick={save}
+                disabled={saving}
+                className="flex items-center gap-1.5 border border-[#e8320a] bg-[#e8320a] px-3 py-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-white transition-all active:scale-95 disabled:opacity-50"
+              >
+                <FloppyDisk size={11} weight="fill" className={saving ? "animate-[spin_1.5s_linear_infinite]" : ""} />
+                {saving ? "Saving" : "Save"}
+              </button>
+              <button onClick={toggleDark} className={`p-1.5 transition-colors ${dk ? "text-[#e8e6e0]/40 hover:text-[#e8e6e0]" : "text-[#0e0e0e]/35 hover:text-[#0e0e0e]"}`} aria-label="Toggle dark mode">
+                {dk ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
+            </div>
+
+            {/* Desktop: dark toggle + sign out */}
+            <div className="hidden lg:flex items-center gap-2">
+              <button onClick={toggleDark} className={`p-2 transition-colors ${dk ? "text-[#e8e6e0]/35 hover:text-[#e8e6e0]" : "text-[#0e0e0e]/30 hover:text-[#0e0e0e]"}`} aria-label="Toggle dark mode">
+                {dk ? <Sun size={14} /> : <Moon size={14} />}
+              </button>
+              <button
+                onClick={signOut}
+                className={`inline-flex items-center gap-1.5 border px-3 py-2 font-mono text-[9px] font-black uppercase tracking-widest transition-all ${dk ? "border-[#e8e6e0]/10 bg-[#1a1a18] text-[#e8e6e0]/40 hover:border-[#e8e6e0]/20 hover:text-[#e8e6e0]" : "border-[#0e0e0e]/10 bg-white text-[#0e0e0e]/40 hover:border-[#0e0e0e]/20 hover:text-[#0e0e0e]"}`}
+              >
+                <SignOut size={11} />
+                Sign out
+              </button>
+            </div>
+          </header>
+
+          {/* Content area */}
+          <main className="flex-1 overflow-y-auto px-4 py-7 pb-28 sm:px-6 lg:px-8 lg:pb-7">
+            {/* Page heading */}
+            <div className="mb-6 max-w-3xl">
+              {(() => {
+                const item = NAV_ITEMS.find((n) => n.id === activeSection);
+                if (!item) return null;
+                const Icon = item.Icon;
+                return (
+                  <div className="flex items-center gap-2.5">
+                    <Icon size={17} className={dk ? "text-[#e8e6e0]/28" : "text-[#0e0e0e]/28"} weight="fill" />
+                    <h1 className={`text-[clamp(1.1rem,3vw,1.4rem)] font-black tracking-tight ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>{item.label}</h1>
+                  </div>
+                );
+              })()}
+
+              {/* Mobile progress banner */}
+              {["profile", "resume", "projects"].includes(activeSection) && (
+                <div className={`mb-5 flex items-center justify-between gap-3 border px-4 py-3 lg:hidden ${dk ? "border-[#e8e6e0]/8 bg-[#1e1e1c]" : "border-[#0e0e0e]/8 bg-white"}`}>
+                  <div className="flex items-center gap-3">
+                    <ProgressRing pct={completionPct} size={30} />
+                    <div>
+                      <p className={`text-[11px] font-black ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>{completionPct}% complete</p>
+                      <p className={`font-mono text-[7px] uppercase tracking-widest ${dk ? "text-[#e8e6e0]/32" : "text-[#0e0e0e]/32"}`}>{completionSteps.filter((s) => s.done).length}/{completionSteps.length} steps done</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {completionSteps.map((step) => (
+                      <button key={step.label} onClick={() => setActiveSection(step.section)} className={["flex h-7 w-7 items-center justify-center border transition-all", step.done ? "border-emerald-300/50 bg-emerald-50" : (dk ? "border-[#e8e6e0]/8 bg-[#252523]" : "border-[#0e0e0e]/8 bg-[#f8f6f0]")].join(" ")}>
+                        {step.done ? <CheckCircle size={12} weight="fill" className="text-emerald-500" /> : <Circle size={12} className={dk ? "text-[#e8e6e0]/22" : "text-[#0e0e0e]/22"} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Inline completion chips */}
+              {["profile", "resume", "projects"].includes(activeSection) && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {completionSteps.map((step) => (
+                    <button
+                      key={step.label}
+                      onClick={() => setActiveSection(step.section)}
+                      className={[
+                        "flex items-center gap-1.5 border px-2.5 py-1 font-mono text-[8px] uppercase tracking-widest transition-all hover:opacity-75",
+                        step.done ? "border-emerald-300/50 bg-emerald-50 text-emerald-700" : (dk ? "border-[#e8e6e0]/8 bg-[#1e1e1c] text-[#e8e6e0]/38" : "border-[#0e0e0e]/8 bg-white text-[#0e0e0e]/38"),
+                      ].join(" ")}
+                    >
+                      {step.done ? <CheckCircle size={9} weight="fill" /> : <Circle size={9} />}
+                      {step.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Section content */}
+            <div className="max-w-3xl">
+              {sectionContent[activeSection]}
+            </div>
+
+            {/* Prev / Next footer nav */}
+            <div className={`mt-8 flex max-w-3xl items-center justify-between border-t pt-6 ${dk ? "border-[#e8e6e0]/7" : "border-[#0e0e0e]/7"}`}>
+              {(() => {
+                const idx = NAV_ITEMS.findIndex((n) => n.id === activeSection);
+                const prev = NAV_ITEMS[idx - 1];
+                const next = NAV_ITEMS[idx + 1];
+                return (
+                  <>
+                    {prev ? (
+                      <button onClick={() => setActiveSection(prev.id)} className={`flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest transition-colors ${dk ? "text-[#e8e6e0]/32 hover:text-[#e8e6e0]/65" : "text-[#0e0e0e]/32 hover:text-[#0e0e0e]/65"}`}>← {prev.label}</button>
+                    ) : <span />}
+                    {next ? (
+                      <button onClick={() => setActiveSection(next.id)} className={`flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest transition-colors ${dk ? "text-[#e8e6e0]/32 hover:text-[#e8e6e0]/65" : "text-[#0e0e0e]/32 hover:text-[#0e0e0e]/65"}`}>{next.label} →</button>
+                    ) : (
+                      <button onClick={save} disabled={saving} className="flex items-center gap-2 border border-[#e8320a] bg-[#e8320a] px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-white transition-all hover:bg-transparent hover:text-[#e8320a] disabled:opacity-50">
+                        <FloppyDisk size={10} weight="fill" />Save & publish
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </main>
         </div>
 
-        {/* Nav items */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
+        {/* Toast */}
+        {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+
+        {/* ── Mobile bottom tab bar ────────────────────────────────────────────── */}
+        <nav className={`fixed bottom-0 left-0 right-0 z-50 flex border-t backdrop-blur-md lg:hidden ${dk ? "border-[#e8e6e0]/10 bg-[#1a1a18]/97" : "border-[#0e0e0e]/10 bg-[#eceae0]/97"}`} style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           {NAV_ITEMS.map(({ id, label, Icon }) => {
             const active = activeSection === id;
             const done = sectionDone[id];
             return (
               <button
                 key={id}
-                onClick={() => { setActiveSection(id); setSidebarOpen(false); }}
+                onClick={() => setActiveSection(id)}
                 className={[
-                  "group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-all duration-100",
-                  active ? "bg-[#0e0e0e] text-white" : "text-[#0e0e0e]/50 hover:bg-[#0e0e0e]/6 hover:text-[#0e0e0e]/80",
+                  "relative flex flex-1 flex-col items-center justify-center gap-1 py-2.5 transition-colors",
+                  active ? "text-[#e8320a]" : (dk ? "text-[#e8e6e0]/35 active:bg-[#e8e6e0]/5" : "text-[#0e0e0e]/35 active:bg-[#0e0e0e]/5"),
                 ].join(" ")}
               >
-                <Icon size={14} weight={active ? "fill" : "regular"} className={active ? "text-white/80" : "text-[#0e0e0e]/30 group-hover:text-[#0e0e0e]/55"} />
-                <span className="flex-1 text-[12px] font-bold tracking-tight">{label}</span>
-                {done === true && <CheckCircle size={11} weight="fill" className={active ? "text-emerald-400" : "text-emerald-500"} />}
-                {done === false && <Circle size={10} className={active ? "text-white/28" : "text-[#0e0e0e]/18"} />}
+                <div className="relative">
+                  <Icon size={20} weight={active ? "fill" : "regular"} />
+                  {done === true && (
+                    <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-emerald-500">
+                      <CheckCircle size={8} weight="fill" className="text-white" />
+                    </span>
+                  )}
+                </div>
+                <span className={["font-mono text-[7px] uppercase tracking-wider leading-none", active ? "font-black" : "font-bold"].join(" ")}>{label}</span>
+                {active && <span className="absolute bottom-0 left-1/2 h-0.5 w-6 -translate-x-1/2 bg-[#e8320a]" />}
               </button>
             );
           })}
         </nav>
 
-        {/* Bottom actions */}
-        <div className="border-t border-[#0e0e0e]/8 p-3 space-y-2">
-          {/* Publish toggle */}
-          <div className={[
-            "flex items-center justify-between gap-2 border px-3 py-2.5 transition-colors",
-            draft.published ? "border-emerald-300/50 bg-emerald-50" : "border-[#0e0e0e]/7 bg-white",
-          ].join(" ")}>
-            <div className="flex items-center gap-2">
-              <span className={["h-2 w-2 rounded-full transition-colors", draft.published ? "animate-pulse bg-emerald-500" : "bg-[#0e0e0e]/18"].join(" ")} />
-              <span className={["font-mono text-[9px] font-black uppercase tracking-widest", draft.published ? "text-emerald-700" : "text-[#0e0e0e]/42"].join(" ")}>
-                {draft.published ? "Live" : "Draft"}
-              </span>
-            </div>
-            <Toggle checked={draft.published} onChange={() => void togglePublish()} />
-          </div>
-
-          {/* Save */}
-          <button
-            onClick={save}
-            disabled={saving}
-            className={[
-              "group flex w-full items-center justify-center gap-2 border py-2.5 font-mono text-[9px] font-black uppercase tracking-widest transition-all duration-150 disabled:opacity-50",
-              saving ? "border-[#0e0e0e]/8 bg-[#0e0e0e]/[0.04] text-[#0e0e0e]/38" : "border-[#e8320a] bg-[#e8320a] text-white hover:bg-transparent hover:text-[#e8320a]",
-            ].join(" ")}
-          >
-            <FloppyDisk size={10} weight="fill" className={saving ? "animate-[spin_1.5s_linear_infinite]" : ""} />
-            {saving ? "Saving…" : "Save changes"}
-          </button>
-
-          {/* View live link */}
-          {draft.published && (
-            <Link href={publicPath} target="_blank" className="flex items-center justify-center gap-1.5 font-mono text-[8px] uppercase tracking-widest text-[#0e0e0e]/30 transition-colors hover:text-[#0e0e0e] py-1">
-              <ArrowSquareOut size={9} />View live page
-            </Link>
-          )}
-
-          <p className="text-center font-mono text-[8px] text-[#0e0e0e]/18 pt-0.5">⌘S to save anytime</p>
-        </div>
-      </aside>
-
-      {/* ── Main panel ──────────────────────────────────────────────────────── */}
-      <div className="flex min-w-0 flex-1 flex-col">
-
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-[#0e0e0e]/7 bg-[#f0ece2]/96 px-4 py-3 backdrop-blur-md sm:px-6">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1 text-[#0e0e0e]/40 hover:text-[#0e0e0e] transition-colors">
-              <ListBullets size={17} />
-            </button>
-            <nav className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] text-[#0e0e0e]/30">
-              <House size={10} />
-              <CaretRight size={7} className="opacity-35" />
-              <span className="font-bold text-[#0e0e0e]/55">{NAV_ITEMS.find((n) => n.id === activeSection)?.label}</span>
-            </nav>
-          </div>
-
-          {/* Mobile save + status */}
-          <div className="flex items-center gap-2 lg:hidden">
-            <div className={["flex items-center gap-1.5 border px-2.5 py-1", draft.published ? "border-emerald-300/50 bg-emerald-50 text-emerald-700" : "border-[#0e0e0e]/8 bg-white text-[#0e0e0e]/38"].join(" ")}>
-              <span className={["h-1.5 w-1.5 rounded-full", draft.published ? "animate-pulse bg-emerald-500" : "bg-[#0e0e0e]/18"].join(" ")} />
-              <span className="font-mono text-[8px] font-black uppercase tracking-widest">{draft.published ? "Live" : "Draft"}</span>
-            </div>
-            <button onClick={save} disabled={saving} className="border border-[#e8320a] bg-[#e8320a] px-3 py-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-white disabled:opacity-50">
-              {saving ? "…" : "Save"}
-            </button>
-            <button
-              onClick={signOut}
-              className="inline-flex items-center gap-1 border border-[#0e0e0e]/10 bg-white px-2.5 py-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-[#0e0e0e]/50 transition-colors hover:text-[#0e0e0e]"
-            >
-              <SignOut size={10} />
-              Out
-            </button>
-          </div>
-
-          <button
-            onClick={signOut}
-            className="hidden lg:inline-flex items-center gap-1.5 border border-[#0e0e0e]/10 bg-white px-3 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-[#0e0e0e]/40 transition-all hover:border-[#0e0e0e]/20 hover:text-[#0e0e0e]"
-          >
-            <SignOut size={11} />
-            Sign out
-          </button>
-        </header>
-
-        {/* Content area */}
-        <main className="flex-1 overflow-y-auto px-4 py-7 sm:px-6 lg:px-8">
-          {/* Page heading */}
-          <div className="mb-6 max-w-3xl">
-            {(() => {
-              const item = NAV_ITEMS.find((n) => n.id === activeSection);
-              if (!item) return null;
-              const Icon = item.Icon;
-              return (
-                <div className="flex items-center gap-2.5">
-                  <Icon size={17} className="text-[#0e0e0e]/28" weight="fill" />
-                  <h1 className="text-[clamp(1.1rem,3vw,1.4rem)] font-black tracking-tight text-[#0e0e0e]">{item.label}</h1>
-                </div>
-              );
-            })()}
-
-            {/* Inline completion chips */}
-            {["profile", "resume", "projects"].includes(activeSection) && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {completionSteps.map((step) => (
-                  <button
-                    key={step.label}
-                    onClick={() => setActiveSection(step.section)}
-                    className={[
-                      "flex items-center gap-1.5 border px-2.5 py-1 font-mono text-[8px] uppercase tracking-widest transition-all hover:opacity-75",
-                      step.done ? "border-emerald-300/50 bg-emerald-50 text-emerald-700" : "border-[#0e0e0e]/8 bg-white text-[#0e0e0e]/38",
-                    ].join(" ")}
-                  >
-                    {step.done ? <CheckCircle size={9} weight="fill" /> : <Circle size={9} />}
-                    {step.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Section content */}
-          <div className="max-w-3xl">
-            {sectionContent[activeSection]}
-          </div>
-
-          {/* Prev / Next footer nav */}
-          <div className="mt-8 flex max-w-3xl items-center justify-between border-t border-[#0e0e0e]/7 pt-6">
-            {(() => {
-              const idx = NAV_ITEMS.findIndex((n) => n.id === activeSection);
-              const prev = NAV_ITEMS[idx - 1];
-              const next = NAV_ITEMS[idx + 1];
-              return (
-                <>
-                  {prev ? (
-                    <button onClick={() => setActiveSection(prev.id)} className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/32 transition-colors hover:text-[#0e0e0e]/65">← {prev.label}</button>
-                  ) : <span />}
-                  {next ? (
-                    <button onClick={() => setActiveSection(next.id)} className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/32 transition-colors hover:text-[#0e0e0e]/65">{next.label} →</button>
-                  ) : (
-                    <button onClick={save} disabled={saving} className="flex items-center gap-2 border border-[#e8320a] bg-[#e8320a] px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-white transition-all hover:bg-transparent hover:text-[#e8320a] disabled:opacity-50">
-                      <FloppyDisk size={10} weight="fill" />Save & publish
-                    </button>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        </main>
-      </div>
-
-      {/* Toast */}
-      {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
-
-      <style>{`
+        <style>{`
         @keyframes toastIn {
           from { transform: translateX(-50%) translateY(14px); opacity: 0; }
           to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
         }
       `}</style>
-    </div>
+      </div>
+    </DarkCtx.Provider>
   );
 }

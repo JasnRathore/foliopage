@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useContext } from "react";
+import { DarkCtx } from "./dashboard-editor";
 import {
   ArrowsLeftRight,
   Rows,
@@ -71,9 +72,10 @@ const TEMPLATE_THEME_SWATCHES: Record<ProfileTemplateId, [string, string, string
 // ─── Layout preview thumbnails ────────────────────────────────────────────────
 
 function LayoutPreview({ layout, active }: { layout: ProfileLayoutVariant; active: boolean }) {
-  const stroke = active ? "rgba(255,255,255,0.8)" : "rgba(14,14,14,0.4)";
-  const fill = active ? "rgba(255,255,255,0.15)" : "rgba(14,14,14,0.07)";
-  const accent = active ? "rgba(255,255,255,0.3)" : "rgba(14,14,14,0.14)";
+  const dk = useContext(DarkCtx);
+  const stroke = active ? "rgba(255,255,255,0.8)" : (dk ? "rgba(232,230,224,0.4)" : "rgba(14,14,14,0.4)");
+  const fill = active ? "rgba(255,255,255,0.15)" : (dk ? "rgba(232,230,224,0.07)" : "rgba(14,14,14,0.07)");
+  const accent = active ? "rgba(255,255,255,0.3)" : (dk ? "rgba(232,230,224,0.14)" : "rgba(14,14,14,0.14)");
   const W = 80; const H = 54;
 
   const schematics: Record<ProfileLayoutVariant, React.ReactNode> = {
@@ -191,12 +193,13 @@ function LayoutPreview({ layout, active }: { layout: ProfileLayoutVariant; activ
 }
 
 function ThemeSwatches({ colors }: { colors: readonly string[] }) {
+  const dk = useContext(DarkCtx);
   return (
     <div className="flex items-center gap-1">
       {colors.map((color, idx) => (
         <span
           key={`${color}-${idx}`}
-          className="h-3.5 w-3.5 border border-[#0e0e0e]/20"
+          className={`h-3.5 w-3.5 border ${dk ? "border-[#e8e6e0]/20" : "border-[#0e0e0e]/20"}`}
           style={{ backgroundColor: color }}
           aria-hidden
         />
@@ -215,6 +218,7 @@ interface BgImageUploaderProps {
 }
 
 function BgImageUploader({ value, overlay, onImageChange, onOverlayChange }: BgImageUploaderProps) {
+  const dk = useContext(DarkCtx);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -236,9 +240,9 @@ function BgImageUploader({ value, overlay, onImageChange, onOverlayChange }: BgI
   }, [handleFile]);
 
   return (
-    <div className="mt-4 border border-[#0e0e0e]/10 bg-[#f0ece2] p-4">
+    <div className={`mt-4 border p-4 transition-colors ${dk ? "border-[#e8e6e0]/10 bg-[#111110]" : "border-[#0e0e0e]/10 bg-[#f0ece2]"}`}>
       <div className="mb-3 flex items-center justify-between">
-        <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#0e0e0e]/40 flex items-center gap-1.5">
+        <p className={`font-mono text-[9px] uppercase tracking-[0.22em] flex items-center gap-1.5 ${dk ? "text-[#e8e6e0]/40" : "text-[#0e0e0e]/40"}`}>
           <ImageSquare size={11} aria-hidden />
           Background Image
         </p>
@@ -246,7 +250,7 @@ function BgImageUploader({ value, overlay, onImageChange, onOverlayChange }: BgI
           <button
             type="button"
             onClick={() => onImageChange("")}
-            className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/40 transition-colors hover:text-[#e8320a]"
+            className={`flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest transition-colors hover:text-[#e8320a] ${dk ? "text-[#e8e6e0]/40" : "text-[#0e0e0e]/40"}`}
           >
             <X size={10} aria-hidden />
             Remove
@@ -255,7 +259,7 @@ function BgImageUploader({ value, overlay, onImageChange, onOverlayChange }: BgI
       </div>
 
       {value ? (
-        <div className="relative aspect-video overflow-hidden border border-[#0e0e0e]/10">
+        <div className={`relative aspect-video overflow-hidden border ${dk ? "border-[#e8e6e0]/10" : "border-[#0e0e0e]/10"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value} alt="Background preview" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black transition-opacity" style={{ opacity: overlay / 100 }} />
@@ -276,17 +280,22 @@ function BgImageUploader({ value, overlay, onImageChange, onOverlayChange }: BgI
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
           className={[
-            "flex w-full flex-col items-center justify-center border-2 border-dashed py-8 px-4 text-center transition-all",
+            "flex w-full flex-col items-center justify-center border-2 border-dashed py-8 px-4 text-center transition-all min-h-[120px]",
             dragging
               ? "border-[#e8320a]/50 bg-[#e8320a]/5"
-              : "border-[#0e0e0e]/15 hover:border-[#e8320a]/40 hover:bg-[#e8320a]/[0.03]",
+              : dk
+                ? "border-[#e8e6e0]/15 hover:border-[#e8320a]/40 hover:bg-[#e8320a]/[0.03]"
+                : "border-[#0e0e0e]/15 hover:border-[#e8320a]/40 hover:bg-[#e8320a]/[0.03]",
           ].join(" ")}
         >
-          <UploadSimple size={18} className="mb-2 text-[#0e0e0e]/30" aria-hidden />
-          <p className="text-xs font-black text-[#0e0e0e]/50">
-            Drop image or <span className="text-[#e8320a]">browse files</span>
+          <UploadSimple size={18} className={`mb-2 ${dk ? "text-[#e8e6e0]/30" : "text-[#0e0e0e]/30"}`} aria-hidden />
+          <p className={`text-xs font-black ${dk ? "text-[#e8e6e0]/50" : "text-[#0e0e0e]/50"}`}>
+            <span className="sm:hidden">Tap to upload image</span>
+            <span className="hidden sm:inline">Drop image or <span className="text-[#e8320a]">browse files</span></span>
           </p>
-          <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/30">JPG · PNG · WebP · max 8 MB</p>
+          <p className={`mt-1 font-mono text-[9px] uppercase tracking-widest ${dk ? "text-[#e8e6e0]/30" : "text-[#0e0e0e]/30"}`}>
+            JPG · PNG · WebP · max 8 MB
+          </p>
         </button>
       )}
 
@@ -301,22 +310,22 @@ function BgImageUploader({ value, overlay, onImageChange, onOverlayChange }: BgI
 
       <div className="mt-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.18em] text-[#0e0e0e]/40">
+          <p className={`flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.18em] ${dk ? "text-[#e8e6e0]/40" : "text-[#0e0e0e]/40"}`}>
             <Sliders size={9} aria-hidden />
             Overlay darkness
           </p>
-          <span className="font-mono text-[9px] tabular-nums text-[#0e0e0e]/40">{overlay}%</span>
+          <span className={`font-mono text-[9px] tabular-nums ${dk ? "text-[#e8e6e0]/40" : "text-[#0e0e0e]/40"}`}>{overlay}%</span>
         </div>
         <input
           type="range"
           min={0} max={90} step={5}
           value={overlay}
           onChange={(e) => onOverlayChange(Number(e.target.value))}
-          className="h-1 w-full cursor-pointer appearance-none bg-[#0e0e0e]/10 accent-[#e8320a]"
+          className={`h-2 w-full cursor-pointer appearance-none accent-[#e8320a] ${dk ? "bg-[#e8e6e0]/10" : "bg-[#0e0e0e]/10"}`}
         />
         <div className="mt-1 flex justify-between">
-          <span className="font-mono text-[9px] text-[#0e0e0e]/25">Lighter</span>
-          <span className="font-mono text-[9px] text-[#0e0e0e]/25">Darker</span>
+          <span className={`font-mono text-[9px] ${dk ? "text-[#e8e6e0]/25" : "text-[#0e0e0e]/25"}`}>Lighter</span>
+          <span className={`font-mono text-[9px] ${dk ? "text-[#e8e6e0]/25" : "text-[#0e0e0e]/25"}`}>Darker</span>
         </div>
       </div>
     </div>
@@ -395,28 +404,30 @@ export function TemplatePicker({
 
   const visibleTemplates = activeLayout === "all" ? allTemplates : (byLayout[activeLayout] ?? []);
 
+  const dk = useContext(DarkCtx);
+
   return (
-    <div className="border border-[#0e0e0e]/10 bg-[#f8f6f0]">
+    <div className={`border transition-colors ${dk ? "border-[#e8e6e0]/8 bg-[#1a1a18]" : "border-[#0e0e0e]/10 bg-[#f8f6f0]"}`}>
 
       {/* Header */}
-      <div className="border-b border-[#0e0e0e]/10 px-5 py-4">
-        <div className="flex items-center justify-between">
+      <div className={`border-b px-4 py-4 sm:px-5 ${dk ? "border-[#e8e6e0]/8" : "border-[#0e0e0e]/10"}`}>
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#0e0e0e]/35">Appearance</p>
-            <h3 className="mt-0.5 text-sm font-black text-[#0e0e0e]">Choose a template</h3>
+            <p className={`font-mono text-[9px] uppercase tracking-[0.22em] ${dk ? "text-[#e8e6e0]/35" : "text-[#0e0e0e]/35"}`}>Appearance</p>
+            <h3 className={`mt-0.5 text-sm font-black ${dk ? "text-[#e8e6e0]" : "text-[#0e0e0e]"}`}>Choose a template</h3>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
               onClick={pickRandomTheme}
-              className="border border-[#0e0e0e]/12 bg-white px-3 py-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-[#0e0e0e]/50 transition-all hover:border-[#0e0e0e]/25 hover:text-[#0e0e0e]"
+              className={`border px-3 py-2 font-mono text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 min-h-[36px] ${dk ? "border-[#e8e6e0]/12 bg-[#252523] text-[#e8e6e0]/50 hover:border-[#e8e6e0]/25 hover:text-[#e8e6e0]" : "border-[#0e0e0e]/12 bg-white text-[#0e0e0e]/50 hover:border-[#0e0e0e]/25 hover:text-[#0e0e0e]"}`}
             >
-              Random theme
+              Random
             </button>
             {selectedTemplateId && (
               <div className="flex items-center gap-2">
                 <ThemeSwatches colors={TEMPLATE_THEME_SWATCHES[selectedTemplateId]} />
-                <span className="font-mono text-[9px] uppercase tracking-widest text-[#0e0e0e]/40">
+                <span className={`hidden font-mono text-[9px] uppercase tracking-widest sm:inline ${dk ? "text-[#e8e6e0]/40" : "text-[#0e0e0e]/40"}`}>
                   {selectedTemplate.label}
                 </span>
               </div>
@@ -425,56 +436,100 @@ export function TemplatePicker({
         </div>
       </div>
 
-      {/* Layout filter tabs */}
-      <div className="overflow-x-auto border-b border-[#0e0e0e]/10 px-5 py-3">
-        <div className="flex min-w-max gap-1">
-          <button
-            type="button"
-            onClick={() => setActiveLayout("all")}
-            className={[
-              "whitespace-nowrap px-3 py-1.5 font-mono text-[9px] uppercase tracking-widest transition-all",
-              activeLayout === "all"
-                ? "border border-[#e8320a] bg-[#e8320a] text-white"
-                : "border border-[#0e0e0e]/10 text-[#0e0e0e]/50 hover:border-[#0e0e0e]/25 hover:text-[#0e0e0e]",
-            ].join(" ")}
-          >
-            All
-          </button>
-          {LAYOUT_ORDER.map((layout) => {
-            const meta = LAYOUT_META[layout];
-            const Icon = meta.Icon;
-            return (
+      {/* Layout filter — dropdown on mobile, tabs on sm+ */}
+      <div className={`border-b ${dk ? "border-[#e8e6e0]/8" : "border-[#0e0e0e]/10"}`}>
+
+        {/* Mobile dropdown */}
+        <div className="sm:hidden px-4 py-3">
+          <div className="relative">
+            <select
+              value={activeLayout}
+              onChange={(e) => setActiveLayout(e.target.value as ProfileLayoutVariant | "all")}
+              className={`w-full appearance-none border py-2.5 pl-3 pr-9 font-mono text-[10px] uppercase tracking-widest outline-none transition-all focus:ring-2 cursor-pointer min-h-[36px] ${dk ? "border-[#e8e6e0]/12 bg-[#252523] text-[#e8e6e0]/70 focus:border-[#e8e6e0]/30 focus:ring-[#e8e6e0]/5" : "border-[#0e0e0e]/12 bg-white text-[#0e0e0e]/70 focus:border-[#0e0e0e]/30 focus:ring-[#0e0e0e]/5"}`}
+            >
+              <option value="all">All layouts</option>
+              {LAYOUT_ORDER.map((layout) => (
+                <option key={layout} value={layout}>
+                  {LAYOUT_META[layout].label} — {LAYOUT_META[layout].description}
+                </option>
+              ))}
+            </select>
+            <span className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${dk ? "text-[#e8e6e0]/35" : "text-[#0e0e0e]/35"}`}>
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+              </svg>
+            </span>
+          </div>
+          {activeLayout !== "all" && (
+            <p className={`mt-2 font-mono text-[9px] uppercase tracking-widest ${dk ? "text-[#e8e6e0]/40" : "text-[#0e0e0e]/40"}`}>
+              {LAYOUT_META[activeLayout].description}
+            </p>
+          )}
+        </div>
+
+        {/* Desktop tabs */}
+        <div className="relative hidden sm:block">
+          <div className="overflow-x-auto px-5 py-3" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+            <div className="flex min-w-max gap-1.5">
               <button
-                key={layout}
                 type="button"
-                onClick={() => setActiveLayout(layout)}
+                onClick={() => setActiveLayout("all")}
                 className={[
-                  "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 font-mono text-[9px] uppercase tracking-widest transition-all",
-                  activeLayout === layout
+                  "flex h-10 items-center whitespace-nowrap px-3.5 font-mono text-[10px] uppercase tracking-widest transition-all",
+                  activeLayout === "all"
                     ? "border border-[#e8320a] bg-[#e8320a] text-white"
-                    : "border border-[#0e0e0e]/10 text-[#0e0e0e]/50 hover:border-[#0e0e0e]/25 hover:text-[#0e0e0e]",
+                    : dk
+                      ? "border border-[#e8e6e0]/10 text-[#e8e6e0]/50 hover:border-[#e8e6e0]/25 hover:text-[#e8e6e0]"
+                      : "border border-[#0e0e0e]/10 text-[#0e0e0e]/50 hover:border-[#0e0e0e]/25 hover:text-[#0e0e0e]",
                 ].join(" ")}
               >
-                <Icon size={10} aria-hidden />
-                {meta.label}
+                All
               </button>
-            );
-          })}
+              {LAYOUT_ORDER.map((layout) => {
+                const meta = LAYOUT_META[layout];
+                const Icon = meta.Icon;
+                return (
+                  <button
+                    key={layout}
+                    type="button"
+                    onClick={() => setActiveLayout(layout)}
+                    className={[
+                      "flex h-10 items-center gap-1.5 whitespace-nowrap px-3.5 font-mono text-[10px] uppercase tracking-widest transition-all",
+                      activeLayout === layout
+                        ? "border border-[#e8320a] bg-[#e8320a] text-white"
+                        : dk
+                          ? "border border-[#e8e6e0]/10 text-[#e8e6e0]/50 hover:border-[#e8e6e0]/25 hover:text-[#e8e6e0]"
+                          : "border border-[#0e0e0e]/10 text-[#0e0e0e]/50 hover:border-[#0e0e0e]/25 hover:text-[#0e0e0e]",
+                    ].join(" ")}
+                  >
+                    <Icon size={11} aria-hidden />
+                    {meta.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {/* Right fade gradient */}
+          <div
+            className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l to-transparent"
+            style={{ backgroundImage: `linear-gradient(to left, ${dk ? "#1a1a18" : "#f8f6f0"}, transparent)` }}
+            aria-hidden
+          />
         </div>
+
+        {/* Desktop description strip */}
+        {activeLayout !== "all" && (
+          <div className={`hidden sm:block border-t px-5 py-2.5 ${dk ? "border-[#e8e6e0]/8 bg-[#e8e6e0]/[0.03]" : "border-[#0e0e0e]/10 bg-[#0e0e0e]/[0.03]"}`}>
+            <p className={`text-[11px] leading-relaxed ${dk ? "text-[#e8e6e0]/55" : "text-[#0e0e0e]/55"}`}>
+              {LAYOUT_META[activeLayout].description}
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Layout description strip */}
-      {activeLayout !== "all" && (
-        <div className="border-b border-[#0e0e0e]/10 bg-[#0e0e0e]/[0.03] px-5 py-2.5">
-          <p className="text-[11px] leading-relaxed text-[#0e0e0e]/55">
-            {LAYOUT_META[activeLayout].description}
-          </p>
-        </div>
-      )}
-
       {/* Template grid */}
-      <div className="p-5">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="p-4 sm:p-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           {visibleTemplates.map((template) => {
             const isActive = template.id === selectedTemplateId;
             const meta = LAYOUT_META[template.layout];
@@ -487,17 +542,17 @@ export function TemplatePicker({
                 type="button"
                 onClick={() => handleChange(template.id as ProfileTemplateId)}
                 className={[
-                  "group relative flex flex-col overflow-hidden text-left transition-all focus-visible:outline-none",
+                  "group relative flex flex-col overflow-hidden text-left transition-all focus-visible:outline-none active:scale-[0.98]",
                   isActive
-                    ? "ring-2 ring-[#e8320a] ring-offset-1 ring-offset-[#f8f6f0]"
-                    : "hover:ring-1 hover:ring-[#0e0e0e]/20",
+                    ? `ring-2 ring-[#e8320a] ring-offset-1 ${dk ? "ring-offset-[#1a1a18]" : "ring-offset-[#f8f6f0]"}`
+                    : dk
+                      ? "hover:ring-1 hover:ring-[#e8e6e0]/20"
+                      : "hover:ring-1 hover:ring-[#0e0e0e]/20",
                 ].join(" ")}
               >
                 {/* Preview area */}
                 <div
-                  style={{
-                    backgroundImage: `linear-gradient(145deg, ${colors[0]} 0%, ${colors[1]} 66%, ${colors[2]} 100%)`,
-                  }}
+                  style={{ backgroundImage: `linear-gradient(145deg, ${colors[0]} 0%, ${colors[1]} 66%, ${colors[2]} 100%)` }}
                   className="relative flex w-full aspect-[3/2] items-center justify-center p-4 transition-opacity"
                 >
                   <LayoutPreview layout={template.layout} active={isActive} />
@@ -518,28 +573,30 @@ export function TemplatePicker({
 
                 {/* Card footer */}
                 <div className={[
-                  "flex flex-col gap-1 border-t px-3 py-2.5 transition-colors",
+                  "flex flex-col gap-1 border-t px-3 py-3 transition-colors",
                   isActive
                     ? "border-[#e8320a]/30 bg-[#e8320a]/5"
-                    : "border-[#0e0e0e]/10 bg-white group-hover:bg-[#0e0e0e]/[0.02]",
+                    : dk
+                      ? "border-[#e8e6e0]/8 bg-[#1e1e1c] group-hover:bg-[#e8e6e0]/[0.025]"
+                      : "border-[#0e0e0e]/10 bg-white group-hover:bg-[#0e0e0e]/[0.02]",
                 ].join(" ")}>
                   <div className="flex items-center justify-between gap-1">
                     <span className={[
-                      "text-[11px] font-black leading-tight tracking-tight transition-colors",
-                      isActive ? "text-[#e8320a]" : "text-[#0e0e0e]/70 group-hover:text-[#0e0e0e]",
+                      "text-[12px] font-black leading-tight tracking-tight transition-colors",
+                      isActive ? "text-[#e8320a]" : dk ? "text-[#e8e6e0]/70 group-hover:text-[#e8e6e0]" : "text-[#0e0e0e]/70 group-hover:text-[#0e0e0e]",
                     ].join(" ")}>
                       {template.label}
                     </span>
-                    <span className="flex shrink-0 items-center gap-0.5 font-mono text-[8px] uppercase tracking-widest text-[#0e0e0e]/30">
-                      <Icon size={8} aria-hidden />
+                    <span className={`flex shrink-0 items-center gap-0.5 font-mono text-[9px] uppercase tracking-wider ${dk ? "text-[#e8e6e0]/30" : "text-[#0e0e0e]/30"}`}>
+                      <Icon size={9} aria-hidden />
                       {meta.label}
                     </span>
                   </div>
-                  <p className="line-clamp-2 text-[10px] leading-snug text-[#0e0e0e]/45">
+                  <p className={`line-clamp-2 text-[11px] leading-snug ${dk ? "text-[#e8e6e0]/45" : "text-[#0e0e0e]/45"}`}>
                     {template.description}
                   </p>
-                  <div className="mt-0.5 flex items-center justify-between">
-                    <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-[#0e0e0e]/25">Theme</span>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className={`font-mono text-[9px] uppercase tracking-[0.15em] ${dk ? "text-[#e8e6e0]/25" : "text-[#0e0e0e]/25"}`}>Theme</span>
                     <ThemeSwatches colors={colors} />
                   </div>
                 </div>
@@ -560,13 +617,13 @@ export function TemplatePicker({
 
         {/* Selected template summary */}
         {selectedTemplateId && (
-          <div className="mt-4 flex items-center justify-between gap-2 border border-[#0e0e0e]/10 bg-[#0e0e0e]/[0.03] px-4 py-2.5">
-            <p className="text-[11px] text-[#0e0e0e]/50">
-              <span className="font-black text-[#0e0e0e]/75">{selectedTemplate.label}</span>
-              <span className="mx-1 text-[#0e0e0e]/25">·</span>
+          <div className={`mt-4 flex items-center justify-between gap-2 border px-4 py-2.5 ${dk ? "border-[#e8e6e0]/8 bg-[#e8e6e0]/[0.03]" : "border-[#0e0e0e]/10 bg-[#0e0e0e]/[0.03]"}`}>
+            <p className={`text-[11px] ${dk ? "text-[#e8e6e0]/50" : "text-[#0e0e0e]/50"}`}>
+              <span className={`font-black ${dk ? "text-[#e8e6e0]/75" : "text-[#0e0e0e]/75"}`}>{selectedTemplate.label}</span>
+              <span className={`mx-1 ${dk ? "text-[#e8e6e0]/25" : "text-[#0e0e0e]/25"}`}>·</span>
               {LAYOUT_META[selectedTemplate.layout].label}
               {selectedTemplate.requiresBgImage && (
-                <span className="ml-1.5 text-[#0e0e0e]/35">· background image recommended</span>
+                <span className={`ml-1.5 ${dk ? "text-[#e8e6e0]/35" : "text-[#0e0e0e]/35"}`}>· background image recommended</span>
               )}
             </p>
             <ThemeSwatches colors={TEMPLATE_THEME_SWATCHES[selectedTemplateId]} />
