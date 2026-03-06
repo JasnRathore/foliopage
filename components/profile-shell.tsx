@@ -201,7 +201,8 @@ function HeroText({
         {profile.name}
       </h1>
       <p className={t.heroHeadline}>{profile.headline}</p>
-      <p className={t.heroBio}>{profile.summary}</p>
+      {/* line-clamp on mobile keeps the hero scannable; full text on sm+ */}
+      <p className={`${t.heroBio} line-clamp-4 sm:line-clamp-none`}>{profile.summary}</p>
     </>
   );
 }
@@ -332,61 +333,45 @@ function ProjectsSection({
         <Briefcase size={14} aria-hidden />
         Projects
       </h2>
-      <div className="mt-3 flex flex-col gap-3">
-        {profile.projects.map((project) => (
-          <article
-            key={project.title}
-            className={recruiterMode ? t.projectCardAlt : t.projectCard}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="text-base font-semibold leading-tight">{project.title}</h3>
-              <div className="flex shrink-0 gap-1">
-                {project.demoUrl && (
-                  <a
-                    href={project.demoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={t.iconBtn}
-                    aria-label="Live demo"
-                  >
-                    <ArrowUpRight size={13} aria-hidden />
-                  </a>
-                )}
-                {project.githubUrl && (
-                  <a
-                    href={project.githubUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={t.iconBtn}
-                    aria-label="GitHub"
-                  >
-                    <GithubLogo size={13} aria-hidden />
-                  </a>
-                )}
+      <div className="mt-3">
+        <ProjectOverflow
+          projects={profile.projects}
+          renderCard={(project) => (
+            <article
+              key={project.title}
+              className={recruiterMode ? t.projectCardAlt : t.projectCard}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-base font-semibold leading-tight">{project.title}</h3>
+                <div className="flex shrink-0 gap-1">
+                  {project.demoUrl && (
+                    <a href={project.demoUrl} target="_blank" rel="noopener noreferrer"
+                      className={t.iconBtn} aria-label="Live demo">
+                      <ArrowUpRight size={13} aria-hidden />
+                    </a>
+                  )}
+                  {project.githubUrl && (
+                    <a href={project.githubUrl} target="_blank" rel="noopener noreferrer"
+                      className={t.iconBtn} aria-label="GitHub">
+                      <GithubLogo size={13} aria-hidden />
+                    </a>
+                  )}
+                </div>
               </div>
-            </div>
-            <p className="mt-1.5 text-sm opacity-65">{project.summary}</p>
-            <div className="mt-3 grid gap-1 text-sm">
-              <p>
-                <span className="font-semibold opacity-85">Problem — </span>
-                <span className="opacity-60">{project.problem}</span>
-              </p>
-              <p>
-                <span className="font-semibold opacity-85">Solution — </span>
-                <span className="opacity-60">{project.solution}</span>
-              </p>
-              <p>
-                <span className="font-semibold opacity-85">Impact — </span>
-                <span className="opacity-60">{project.impact}</span>
-              </p>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {project.techStack.map((tech) => (
-                <span key={tech} className={t.chip}>{tech}</span>
-              ))}
-            </div>
-          </article>
-        ))}
+              <p className="mt-1.5 text-sm opacity-65">{project.summary}</p>
+              <ProjectPSI
+                psi={[
+                  { label: "Problem", value: project.problem },
+                  { label: "Solution", value: project.solution },
+                  { label: "Impact", value: project.impact },
+                ]}
+              />
+              <div className="mt-3">
+                <TechChips techStack={project.techStack} t={t} />
+              </div>
+            </article>
+          )}
+        />
       </div>
     </section>
   );
@@ -406,20 +391,7 @@ function SkillsSection({ t, profile }: { t: ProfileTemplateStyles; profile: Prof
         <Notepad size={14} aria-hidden />
         Skills
       </h2>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {skillGroups.map((group) => (
-          <article key={group.label} className="rounded-2xl border border-black/8 bg-black/3 p-3">
-            <h3 className="mb-2 text-[10px] font-bold uppercase tracking-widest opacity-40">
-              {group.label}
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {group.values.map((value) => (
-                <span key={value} className={t.chip}>{value}</span>
-              ))}
-            </div>
-          </article>
-        ))}
-      </div>
+      <SkillGroupList skillGroups={skillGroups} t={t} />
     </section>
   );
 }
@@ -443,14 +415,7 @@ function ExperienceSection({ t, profile }: { t: ProfileTemplateStyles; profile: 
               <p className="text-[11px] opacity-40 tabular-nums">{exp.period}</p>
             </div>
             <p className="mt-0.5 text-sm font-medium opacity-50">{exp.org}</p>
-            <ul className="mt-2.5 space-y-1 text-sm">
-              {exp.bullets.map((bullet) => (
-                <li key={bullet} className="flex gap-2 opacity-60">
-                  <span aria-hidden className="mt-[3px] shrink-0 text-[9px]">▸</span>
-                  {bullet}
-                </li>
-              ))}
-            </ul>
+            <ExpBulletList bullets={exp.bullets} />
           </article>
         ))}
       </div>
@@ -504,6 +469,236 @@ function ChildPageSection({
         ))}
       </div>
     </section>
+  );
+}
+
+// ─── Mobile-digestibility helpers ────────────────────────────────────────────
+//
+// Five helpers apply progressive-disclosure and simplified layouts on mobile:
+//
+//   SkillGroupList  — category label + dot-joined text on mobile (chip grid sm+)
+//   TechChips       — first 3 chips visible, rest "+N" badge on mobile
+//   ProjectPSI      — Problem/Solution/Impact behind a <details> toggle on mobile
+//   ExpBulletList   — first 2 bullets shown, rest behind "+N more" on mobile
+//   ProjectOverflow — first 2 project cards shown, rest behind "Show N more" on mobile
+//
+// All use native HTML <details>/<summary> (no JS, SSR-safe) and sm: breakpoints.
+
+// SkillGroupList: the chip grid is hard to scan on a narrow screen.
+// On mobile we render each category as a single readable line:
+//   Languages   React · TypeScript · Go
+//   Frameworks  Next.js · Tailwind · Prisma
+// On sm+ we restore the card+chip grid.
+function SkillGroupList({
+  skillGroups,
+  t,
+  cardClass = "rounded-2xl border border-black/8 bg-black/3 p-3",
+}: {
+  skillGroups: { label: string; values: string[] }[];
+  t: ProfileTemplateStyles;
+  cardClass?: string;
+}) {
+  if (skillGroups.length === 0) return null;
+  return (
+    <>
+      {/* Mobile: label + dot-joined items — one line per category, easy to scan */}
+      <div className="sm:hidden mt-3 flex flex-col gap-2">
+        {skillGroups.map((group) => (
+          <div key={group.label} className="flex items-baseline gap-2.5">
+            <span className="w-20 shrink-0 text-[9px] font-bold uppercase tracking-widest opacity-35 leading-relaxed">
+              {group.label}
+            </span>
+            <span className="text-[13px] opacity-65 leading-relaxed">
+              {group.values.join(" · ")}
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* sm+: chip card grid */}
+      <div className="hidden sm:grid mt-3 gap-3 sm:grid-cols-2">
+        {skillGroups.map((group) => (
+          <article key={group.label} className={cardClass}>
+            <h3 className="mb-2 text-[10px] font-bold uppercase tracking-widest opacity-40">
+              {group.label}
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {group.values.map((value) => (
+                <span key={value} className={t.chip}>{value}</span>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// TechChips: show the 3 most relevant chips on mobile, rest as +N badge.
+// On sm+ all chips are shown.
+function TechChips({
+  techStack,
+  t,
+  maxMobile = 3,
+}: {
+  techStack: string[];
+  t: ProfileTemplateStyles;
+  maxMobile?: number;
+}) {
+  const overflow = techStack.length - maxMobile;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {/* Always-visible chips */}
+      {techStack.slice(0, maxMobile).map((tech) => (
+        <span key={tech} className={t.chip}>{tech}</span>
+      ))}
+      {/* Desktop-only overflow chips */}
+      {techStack.slice(maxMobile).map((tech) => (
+        <span key={tech} className={`${t.chip} hidden sm:inline-flex`}>{tech}</span>
+      ))}
+      {/* Mobile +N badge */}
+      {overflow > 0 && (
+        <span className="sm:hidden self-center text-[11px] font-medium opacity-35">
+          +{overflow}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ProjectOverflow: shows first `maxMobile` project cards on mobile, wraps the
+// rest in a native <details> toggle. On sm+ all projects are always visible.
+// Pass `renderCard` as a function that takes a project and returns JSX.
+function ProjectOverflow({
+  projects,
+  maxMobile = 2,
+  wrapperClass = "flex flex-col gap-3",
+  renderCard,
+}: {
+  projects: ProfileData["projects"];
+  maxMobile?: number;
+  wrapperClass?: string;
+  renderCard: (project: ProfileData["projects"][0], idx: number) => React.ReactNode;
+}) {
+  const visible = projects.slice(0, maxMobile);
+  const overflow = projects.slice(maxMobile);
+  const count = overflow.length;
+
+  return (
+    <div className={wrapperClass}>
+      {/* Always-visible first N cards */}
+      {visible.map((p, i) => renderCard(p, i))}
+
+      {count > 0 && (
+        <>
+          {/* sm+: overflow cards always shown */}
+          <div className="hidden sm:contents">
+            {overflow.map((p, i) => renderCard(p, maxMobile + i))}
+          </div>
+          {/* Mobile: overflow cards behind a details toggle */}
+          <details className="sm:hidden group">
+            <summary className="flex cursor-pointer list-none select-none items-center gap-1.5 rounded-xl border border-current/10 px-4 py-3 text-sm font-medium opacity-45 hover:opacity-70 transition-opacity">
+              <span className="group-open:hidden">
+                Show {count} more project{count !== 1 ? "s" : ""} ↓
+              </span>
+              <span className="hidden group-open:inline">Show fewer ↑</span>
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
+              {overflow.map((p, i) => renderCard(p, maxMobile + i))}
+            </div>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface PSIEntry { label: string; value: string }
+
+function ProjectPSI({
+  psi,
+  labelClass = "font-semibold opacity-85",
+  valueClass = "opacity-60",
+}: {
+  psi: PSIEntry[];
+  labelClass?: string;
+  valueClass?: string;
+}) {
+  return (
+    <>
+      {/* sm+: always visible */}
+      <div className="hidden sm:grid gap-1 text-sm mt-3">
+        {psi.map(({ label, value }) => (
+          <p key={label}>
+            <span className={labelClass}>{label} — </span>
+            <span className={valueClass}>{value}</span>
+          </p>
+        ))}
+      </div>
+      {/* Mobile: collapsed behind a native toggle */}
+      <details className="sm:hidden group mt-2">
+        <summary className="flex cursor-pointer list-none select-none items-center gap-1 py-0.5 text-[11px] font-medium opacity-35 hover:opacity-60 transition-opacity">
+          <span className="group-open:hidden">Details ↓</span>
+          <span className="hidden group-open:inline">Details ↑</span>
+        </summary>
+        <div className="mt-1.5 grid gap-1.5 border-t border-current/8 pt-2 text-sm">
+          {psi.map(({ label, value }) => (
+            <p key={label}>
+              <span className={labelClass}>{label} — </span>
+              <span className={valueClass}>{value}</span>
+            </p>
+          ))}
+        </div>
+      </details>
+    </>
+  );
+}
+
+function ExpBulletList({
+  bullets,
+  bulletClass = "opacity-60",
+  maxMobile = 2,
+}: {
+  bullets: string[];
+  bulletClass?: string;
+  maxMobile?: number;
+}) {
+  const overflow = bullets.length - maxMobile;
+  return (
+    <>
+      <ul className="mt-2.5 space-y-1 text-sm">
+        {/* First maxMobile bullets — always visible */}
+        {bullets.slice(0, maxMobile).map((b) => (
+          <li key={b} className={`flex gap-2 ${bulletClass}`}>
+            <span aria-hidden className="mt-[3px] shrink-0 text-[9px]">▸</span>
+            {b}
+          </li>
+        ))}
+        {/* Overflow bullets — visible sm+, hidden on mobile (shown via details) */}
+        {bullets.slice(maxMobile).map((b) => (
+          <li key={b} className={`hidden sm:flex gap-2 ${bulletClass}`}>
+            <span aria-hidden className="mt-[3px] shrink-0 text-[9px]">▸</span>
+            {b}
+          </li>
+        ))}
+      </ul>
+      {/* Mobile-only: expandable overflow */}
+      {overflow > 0 && (
+        <details className="sm:hidden group mt-0.5">
+          <summary className="flex cursor-pointer list-none select-none items-center gap-1 py-1 text-[11px] font-medium opacity-35 hover:opacity-60 transition-opacity">
+            <span className="group-open:hidden">+{overflow} more</span>
+            <span className="hidden group-open:inline">Show less</span>
+          </summary>
+          <ul className="mt-1 space-y-1 text-sm">
+            {bullets.slice(maxMobile).map((b) => (
+              <li key={b} className={`flex gap-2 ${bulletClass}`}>
+                <span aria-hidden className="mt-[3px] shrink-0 text-[9px]">▸</span>
+                {b}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </>
   );
 }
 
@@ -592,20 +787,11 @@ function StackLayout({
                 <Notepad size={14} aria-hidden />
                 Skills
               </h2>
-              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                {skillGroups.map((group) => (
-                  <article key={group.label} className="rounded-2xl border border-black/8 bg-black/3 p-3">
-                    <h3 className="mb-2 text-[10px] font-bold uppercase tracking-widest opacity-40">
-                      {group.label}
-                    </h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      {group.values.map((value) => (
-                        <span key={value} className={t.chip}>{value}</span>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
+              <SkillGroupList
+                skillGroups={skillGroups}
+                t={t}
+                cardClass="rounded-2xl border border-black/8 bg-black/3 p-3"
+              />
             </section>
           </div>
         )}
@@ -682,42 +868,44 @@ function StackLayout({
               <Briefcase size={14} aria-hidden />
               Projects
             </h2>
-            <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {profile.projects.map((project) => (
-                <article
-                  key={project.title}
-                  className={recruiterMode ? t.projectCardAlt : t.projectCard}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-base font-semibold leading-tight">{project.title}</h3>
-                    <div className="flex shrink-0 gap-1">
-                      {project.demoUrl && (
-                        <a href={project.demoUrl} target="_blank" rel="noopener noreferrer"
-                          className={t.iconBtn} aria-label="Live demo">
-                          <ArrowUpRight size={13} aria-hidden />
-                        </a>
-                      )}
-                      {project.githubUrl && (
-                        <a href={project.githubUrl} target="_blank" rel="noopener noreferrer"
-                          className={t.iconBtn} aria-label="GitHub">
-                          <GithubLogo size={13} aria-hidden />
-                        </a>
-                      )}
+            <div className="mt-3">
+              <ProjectOverflow
+                projects={profile.projects}
+                wrapperClass="grid grid-cols-1 gap-3 lg:grid-cols-2"
+                renderCard={(project) => (
+                  <article
+                    key={project.title}
+                    className={recruiterMode ? t.projectCardAlt : t.projectCard}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-base font-semibold leading-tight">{project.title}</h3>
+                      <div className="flex shrink-0 gap-1">
+                        {project.demoUrl && (
+                          <a href={project.demoUrl} target="_blank" rel="noopener noreferrer"
+                            className={t.iconBtn} aria-label="Live demo">
+                            <ArrowUpRight size={13} aria-hidden />
+                          </a>
+                        )}
+                        {project.githubUrl && (
+                          <a href={project.githubUrl} target="_blank" rel="noopener noreferrer"
+                            className={t.iconBtn} aria-label="GitHub">
+                            <GithubLogo size={13} aria-hidden />
+                          </a>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <p className="mt-1.5 text-sm opacity-65">{project.summary}</p>
-                  <div className="mt-3 grid gap-1 text-sm">
-                    <p><span className="font-semibold opacity-85">Problem — </span><span className="opacity-60">{project.problem}</span></p>
-                    <p><span className="font-semibold opacity-85">Solution — </span><span className="opacity-60">{project.solution}</span></p>
-                    <p><span className="font-semibold opacity-85">Impact — </span><span className="opacity-60">{project.impact}</span></p>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {project.techStack.map((tech) => (
-                      <span key={tech} className={t.chip}>{tech}</span>
-                    ))}
-                  </div>
-                </article>
-              ))}
+                    <p className="mt-1.5 text-sm opacity-65">{project.summary}</p>
+                    <ProjectPSI psi={[
+                      { label: "Problem", value: project.problem },
+                      { label: "Solution", value: project.solution },
+                      { label: "Impact", value: project.impact },
+                    ]} />
+                    <div className="mt-3">
+                      <TechChips techStack={project.techStack} t={t} />
+                    </div>
+                  </article>
+                )}
+              />
             </div>
           </section>
         </div>
@@ -748,14 +936,7 @@ function StackLayout({
                       <p className="text-[11px] opacity-40 tabular-nums">{exp.period}</p>
                     </div>
                     <p className="mt-0.5 text-sm font-medium opacity-50">{exp.org}</p>
-                    <ul className="mt-2.5 space-y-1 text-sm">
-                      {exp.bullets.map((bullet) => (
-                        <li key={bullet} className="flex gap-2 opacity-60">
-                          <span aria-hidden className="mt-[3px] shrink-0 text-[9px]">▸</span>
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
+                    <ExpBulletList bullets={exp.bullets} />
                   </article>
                 ))}
               </div>
@@ -956,7 +1137,14 @@ function SidebarLayout({
           </>
         )}
 
+        {/* ── Bio blurb — context before the resume CTA ───────────── */}
+        <div className={t.sidebarDivider} />
+        <p className={`${t.heroBio} px-2 py-3 text-[11px] leading-relaxed`}>
+          {profile.summary}
+        </p>
+
         {/* ── RÉSUMÉ group ─────────────────────────────────────── */}
+        <div className={t.sidebarDivider} />
         <p className={t.sidebarNavSection}>Résumé</p>
         <div className={`${t.sidebarResumeCard} mx-1 mb-1`}>
           <div className="flex items-center justify-between mb-1.5">
@@ -981,15 +1169,9 @@ function SidebarLayout({
           )}
         </div>
 
-        {/* ── Bio blurb (collapsed, subtle) ───────────────────── */}
-        <div className={t.sidebarDivider} />
-        <p className={`${t.heroBio} px-2 py-3 text-[11px] leading-relaxed`}>
-          {profile.summary}
-        </p>
-
-        {/* ── Spacer + footer ──────────────────────────────────── */}
+        {/* ── Footer — desktop only; mobile gets its own footer in the right pane ── */}
         {profile.plan === "free" && !recruiterMode && (
-          <p className={`${t.footer} mt-auto px-2 pb-1 text-left text-[10px]`}>
+          <p className={`${t.footer} hidden md:block mt-auto px-2 pb-1 text-left text-[10px]`}>
             Built with{" "}
             <Link href="/" className="underline underline-offset-2 opacity-50 hover:opacity-100">
               foliopage
@@ -1000,24 +1182,31 @@ function SidebarLayout({
 
       {/* ══════════════════════════════════════════════════════════
           RIGHT — scrollable content pane
-          Mobile order: Skills(1) → ChildPage(2) → Projects(3) → Experience(4)
-          Desktop order: Projects(1) → ChildPage(2) → Skills(3) → Experience(4)
+          Skills → ChildPage → Projects → Experience (same order on all breakpoints)
           ══════════════════════════════════════════════════════════ */}
       <main className={`${t.sidebarRight} flex flex-col`}>
 
-        {/* ── SKILLS — order-1 mobile, order-3 desktop ─────────── */}
+        {/* ── SKILLS — always first ─────────────────────────────── */}
         {!recruiterMode && skillGroups.length > 0 && (
-          <div className="order-1 md:order-3 mb-8">
-            <h2 className={`${t.sectionTitle} mb-5`}>
+          <div className="mb-8">
+            <h2 className={`${t.sectionTitle} mb-4`}>
               <Notepad size={13} aria-hidden />
               Skills
             </h2>
-            <div className="flex flex-col gap-5">
+            {/* Mobile: scannable dot-list */}
+            <div className="sm:hidden flex flex-col gap-2">
+              {skillGroups.map((group) => (
+                <div key={group.label} className="flex items-baseline gap-2.5">
+                  <span className="w-20 shrink-0 text-[9px] font-bold uppercase tracking-widest opacity-35">{group.label}</span>
+                  <span className="text-[13px] opacity-65 leading-relaxed">{group.values.join(" · ")}</span>
+                </div>
+              ))}
+            </div>
+            {/* sm+: chip groups */}
+            <div className="hidden sm:flex flex-col gap-5">
               {skillGroups.map((group) => (
                 <div key={group.label} className={t.sidebarSkillGroup}>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-35 mb-2">
-                    {group.label}
-                  </p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-35 mb-2">{group.label}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {group.values.map((value) => (
                       <span key={value} className={t.chip}>{value}</span>
@@ -1029,15 +1218,15 @@ function SidebarLayout({
           </div>
         )}
 
-        {/* ── CHILD PAGE — order-2 mobile, order-2 desktop ──────── */}
+        {/* ── CHILD PAGE — always second ────────────────────────── */}
         {childPage && (
-          <div className="order-2 md:order-2">
+          <div className="mb-8">
             <ChildPageSection profile={profile} childPage={childPage} t={t} />
           </div>
         )}
 
-        {/* ── PROJECTS — order-3 mobile, order-1 desktop ───────── */}
-        <div className="order-3 md:order-1 mb-8">
+        {/* ── PROJECTS — always third ───────────────────────────── */}
+        <div className="mb-8">
           <div className="flex items-center justify-between mb-5">
             <h2 className={t.sectionTitle}>
               <Briefcase size={13} aria-hidden />
@@ -1048,8 +1237,9 @@ function SidebarLayout({
             </span>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {profile.projects.map((project, idx) => (
+          <ProjectOverflow
+            projects={profile.projects}
+            renderCard={(project, idx) => (
               <article key={project.title} className={t.sidebarProjectCard}>
                 {/* Header row */}
                 <div className="flex items-start justify-between gap-3 mb-2">
@@ -1066,24 +1256,14 @@ function SidebarLayout({
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {project.demoUrl && (
-                      <a
-                        href={project.demoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={t.iconBtn}
-                        aria-label="Live demo"
-                      >
+                      <a href={project.demoUrl} target="_blank" rel="noopener noreferrer"
+                        className={t.iconBtn} aria-label="Live demo">
                         <ArrowUpRight size={12} aria-hidden />
                       </a>
                     )}
                     {project.githubUrl && (
-                      <a
-                        href={project.githubUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={t.iconBtn}
-                        aria-label="GitHub"
-                      >
+                      <a href={project.githubUrl} target="_blank" rel="noopener noreferrer"
+                        className={t.iconBtn} aria-label="GitHub">
                         <GithubLogo size={12} aria-hidden />
                       </a>
                     )}
@@ -1093,33 +1273,28 @@ function SidebarLayout({
                 <p className="text-sm opacity-55 mb-3">{project.summary}</p>
 
                 {!recruiterMode && (
-                  <div className="flex flex-col gap-1.5 text-[13px] mb-3">
-                    {[
+                  <ProjectPSI
+                    psi={[
                       { label: "Problem", value: project.problem },
                       { label: "Solution", value: project.solution },
                       { label: "Impact", value: project.impact },
-                    ].map(({ label, value }) => (
-                      <p key={label} className="leading-relaxed">
-                        <span className="font-semibold opacity-75">{label} — </span>
-                        <span className="opacity-50">{value}</span>
-                      </p>
-                    ))}
-                  </div>
+                    ]}
+                    labelClass="font-semibold opacity-75"
+                    valueClass="opacity-50"
+                  />
                 )}
 
-                <div className="flex flex-wrap gap-1.5">
-                  {project.techStack.map((tech) => (
-                    <span key={tech} className={t.chip}>{tech}</span>
-                  ))}
+                <div className="mt-3">
+                  <TechChips techStack={project.techStack} t={t} />
                 </div>
               </article>
-            ))}
-          </div>
+            )}
+          />
         </div>
 
-        {/* ── EXPERIENCE — order-4 both ─────────────────────────── */}
+        {/* ── EXPERIENCE — always fourth ─────────────────────────── */}
         {!recruiterMode && profile.experiences.length > 0 && (
-          <div className="order-4 mb-8">
+          <div className="mb-8">
             <h2 className={`${t.sectionTitle} mb-5`}>
               <UserCircle size={13} aria-hidden />
               Experience
@@ -1137,31 +1312,16 @@ function SidebarLayout({
                     </span>
                   </div>
                   <p className={t.sidebarExpOrg}>{exp.org}</p>
-                  <ul className="mt-2 flex flex-col gap-1">
-                    {exp.bullets.map((bullet) => (
-                      <li
-                        key={bullet}
-                        className={`flex gap-2 ${t.sidebarExpBullet}`}
-                      >
-                        <span
-                          aria-hidden
-                          className="mt-[4px] shrink-0 text-[8px] opacity-40"
-                        >
-                          ▸
-                        </span>
-                        {bullet}
-                      </li>
-                    ))}
-                  </ul>
+                  <ExpBulletList bullets={exp.bullets} bulletClass={t.sidebarExpBullet} />
                 </article>
               ))}
             </div>
           </div>
         )}
 
-        {/* Mobile footer */}
+        {/* Mobile-only footer — desktop footer is pinned to bottom of the left sidebar panel */}
         {profile.plan === "free" && !recruiterMode && (
-          <footer className={`${t.footer} order-5 mt-8 md:hidden`}>
+          <footer className={`${t.footer} mt-8 md:hidden`}>
             Built with{" "}
             <Link
               href="/"
@@ -1265,17 +1425,18 @@ function MagazineLayout({
           </section>
 
           {!recruiterMode && <SkillsSection profile={profile} t={t} />}
-
-          {profile.plan === "free" && !recruiterMode && (
-            <footer className={t.footer}>
-              Built with{" "}
-              <Link href="/" className="underline underline-offset-2 opacity-70 hover:opacity-100">
-                foliopage
-              </Link>
-            </footer>
-          )}
         </div>
-      </div>
+      </div>{/* ── end magazineGrid ── */}
+
+      {/* Footer outside both columns — always renders after all content regardless of column order */}
+      {profile.plan === "free" && !recruiterMode && (
+        <footer className={t.footer}>
+          Built with{" "}
+          <Link href="/" className="underline underline-offset-2 opacity-70 hover:opacity-100">
+            foliopage
+          </Link>
+        </footer>
+      )}
     </div>
   );
 }
@@ -1411,8 +1572,10 @@ function BentoLayout({
       {/* Desktop: grid placement is handled by bentoGrid CSS classes */}
       <div className={`${t.bentoGrid} flex flex-col lg:grid`}>
 
-        {/* ── HERO TILE (order-1 on all breakpoints) ──────────────────────── */}
-        <header className={`${t.bentoHero} order-1`} style={{ fontFamily: t.fontDisplay }}>
+        {/* ── HERO TILE — first on mobile flex AND on desktop grid ──────────── */}
+        {/* order-1: ensures hero is first in mobile flex-col.                   */}
+        {/* lg:order-none resets to order:0 on desktop so CSS grid DOM order wins */}
+        <header className={`${t.bentoHero} order-1 lg:order-none`} style={{ fontFamily: t.fontDisplay }}>
           <ProfileImage profile={profile} className="mb-5 h-28 w-28 rounded-3xl border-2 border-black" />
           {/* Pills row */}
           <div className="flex flex-wrap gap-2">
@@ -1478,15 +1641,17 @@ function BentoLayout({
                   </div>
                 </div>
                 <p className="mt-1.5 text-sm opacity-70">{project.summary}</p>
-                <div className="mt-3 grid gap-1 text-sm">
-                  <p><span className="font-bold opacity-90">Problem — </span><span className="opacity-65">{project.problem}</span></p>
-                  <p><span className="font-bold opacity-90">Solution — </span><span className="opacity-65">{project.solution}</span></p>
-                  <p><span className="font-bold opacity-90">Impact — </span><span className="opacity-65">{project.impact}</span></p>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {project.techStack.map((tech) => (
-                    <span key={tech} className={t.chip}>{tech}</span>
-                  ))}
+                <ProjectPSI
+                  psi={[
+                    { label: "Problem", value: project.problem },
+                    { label: "Solution", value: project.solution },
+                    { label: "Impact", value: project.impact },
+                  ]}
+                  labelClass="font-bold opacity-90"
+                  valueClass="opacity-65"
+                />
+                <div className="mt-3">
+                  <TechChips techStack={project.techStack} t={t} />
                 </div>
               </article>
             ))}
@@ -1577,12 +1742,20 @@ function BentoLayout({
               <Notepad size={14} aria-hidden />
               Skills
             </h2>
-            <div className="mt-4 flex flex-col gap-4">
+            {/* Mobile: scannable dot-list */}
+            <div className="sm:hidden mt-4 flex flex-col gap-2">
+              {skillGroups.map((group) => (
+                <div key={group.label} className="flex items-baseline gap-2.5">
+                  <span className="w-20 shrink-0 text-[9px] font-bold uppercase tracking-widest opacity-35">{group.label}</span>
+                  <span className="text-[13px] opacity-65 leading-relaxed">{group.values.join(" · ")}</span>
+                </div>
+              ))}
+            </div>
+            {/* sm+: chip stacks */}
+            <div className="hidden sm:flex mt-4 flex-col gap-4">
               {skillGroups.map((group) => (
                 <div key={group.label}>
-                  <h3 className="mb-2 text-[10px] font-black uppercase tracking-widest opacity-40">
-                    {group.label}
-                  </h3>
+                  <h3 className="mb-2 text-[10px] font-black uppercase tracking-widest opacity-40">{group.label}</h3>
                   <div className="flex flex-wrap gap-1.5">
                     {group.values.map((value) => (
                       <span key={value} className={t.chip}>{value}</span>
@@ -1609,31 +1782,25 @@ function BentoLayout({
                     <p className="text-[11px] opacity-40 tabular-nums">{exp.period}</p>
                   </div>
                   <p className="mt-0.5 text-sm font-semibold opacity-55">{exp.org}</p>
-                  <ul className="mt-2.5 space-y-1 text-sm">
-                    {exp.bullets.map((bullet) => (
-                      <li key={bullet} className="flex gap-2 opacity-60">
-                        <span aria-hidden className="mt-[3px] shrink-0 text-[9px]">▸</span>
-                        {bullet}
-                      </li>
-                    ))}
-                  </ul>
+                  <ExpBulletList bullets={exp.bullets} />
                 </article>
               ))}
             </div>
           </section>
         )}
 
-        {/* ── FOOTER ──────────────────────────────────────────────────── */}
-        {profile.plan === "free" && !recruiterMode && (
-          <footer className={t.footer}>
-            Built with{" "}
-            <Link href="/" className="underline underline-offset-2 opacity-60 hover:opacity-100">
-              foliopage
-            </Link>
-          </footer>
-        )}
+      </div>{/* ── end bentoGrid ── */}
 
-      </div>
+      {/* Footer lives OUTSIDE the grid so it always renders after all tiles */}
+      {profile.plan === "free" && !recruiterMode && (
+        <footer className={t.footer}>
+          Built with{" "}
+          <Link href="/" className="underline underline-offset-2 opacity-60 hover:opacity-100">
+            foliopage
+          </Link>
+        </footer>
+      )}
+
     </div>
   );
 }
@@ -1760,16 +1927,24 @@ function SplitLayout({
         {/* Skills — order-1 mobile, order-3 desktop */}
         {!recruiterMode && skillGroups.length > 0 && (
           <section className={`${t.section} order-1 lg:order-3`}>
-            <h2 className={`${t.sectionTitle} mb-5`}>
+            <h2 className={`${t.sectionTitle} mb-4`}>
               <Notepad size={13} aria-hidden />
               Skills
             </h2>
-            <div className="flex flex-col gap-5">
+            {/* Mobile: dot-list */}
+            <div className="sm:hidden flex flex-col gap-2">
+              {skillGroups.map((group) => (
+                <div key={group.label} className="flex items-baseline gap-2.5">
+                  <span className="w-20 shrink-0 text-[9px] font-bold uppercase tracking-widest opacity-30">{group.label}</span>
+                  <span className="text-[13px] opacity-65 leading-relaxed">{group.values.join(" · ")}</span>
+                </div>
+              ))}
+            </div>
+            {/* sm+: chip groups */}
+            <div className="hidden sm:flex flex-col gap-5">
               {skillGroups.map((group) => (
                 <div key={group.label}>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-30 mb-2">
-                    {group.label}
-                  </p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-30 mb-2">{group.label}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {group.values.map((v) => (
                       <span key={v} className={t.chip}>{v}</span>
@@ -1824,23 +1999,18 @@ function SplitLayout({
                 </div>
                 <p className="text-sm opacity-55 mb-3">{project.summary}</p>
                 {!recruiterMode && (
-                  <div className="flex flex-col gap-1 text-sm mb-3">
-                    {[
+                  <ProjectPSI
+                    psi={[
                       { label: "Problem", value: project.problem },
                       { label: "Solution", value: project.solution },
                       { label: "Impact", value: project.impact },
-                    ].map(({ label, value }) => (
-                      <p key={label}>
-                        <span className="font-semibold opacity-70">{label} — </span>
-                        <span className="opacity-50">{value}</span>
-                      </p>
-                    ))}
-                  </div>
+                    ]}
+                    labelClass="font-semibold opacity-70"
+                    valueClass="opacity-50"
+                  />
                 )}
-                <div className="flex flex-wrap gap-1.5">
-                  {project.techStack.map((tech) => (
-                    <span key={tech} className={t.chip}>{tech}</span>
-                  ))}
+                <div className="mt-3">
+                  <TechChips techStack={project.techStack} t={t} />
                 </div>
               </article>
             ))}
@@ -1862,14 +2032,7 @@ function SplitLayout({
                     <span className="text-[10px] opacity-30 tabular-nums shrink-0">{exp.period}</span>
                   </div>
                   <p className="text-xs opacity-50 mb-2">{exp.org}</p>
-                  <ul className="flex flex-col gap-1">
-                    {exp.bullets.map((b) => (
-                      <li key={b} className="flex gap-2 text-sm opacity-45">
-                        <span aria-hidden className="mt-[4px] shrink-0 text-[8px]">▸</span>
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
+                  <ExpBulletList bullets={exp.bullets} bulletClass="opacity-45" maxMobile={2} />
                 </article>
               ))}
             </div>
@@ -2030,21 +2193,18 @@ function ScrollytellingLayout({
                 </div>
                 <p className="text-sm opacity-55 mb-3">{project.summary}</p>
                 {!recruiterMode && (
-                  <div className="flex flex-col gap-1 text-sm mb-3">
-                    {[
+                  <ProjectPSI
+                    psi={[
                       { label: "Problem", value: project.problem },
                       { label: "Solution", value: project.solution },
                       { label: "Impact", value: project.impact },
-                    ].map(({ label, value }) => (
-                      <p key={label}>
-                        <span className="font-medium opacity-70">{label} — </span>
-                        <span className="opacity-50">{value}</span>
-                      </p>
-                    ))}
-                  </div>
+                    ]}
+                    labelClass="font-medium opacity-70"
+                    valueClass="opacity-50"
+                  />
                 )}
-                <div className="flex flex-wrap gap-1.5">
-                  {project.techStack.map((tech) => <span key={tech} className={t.chip}>{tech}</span>)}
+                <div className="mt-3">
+                  <TechChips techStack={project.techStack} t={t} />
                 </div>
               </article>
             ))}
@@ -2056,11 +2216,21 @@ function ScrollytellingLayout({
       {!recruiterMode && skillGroups.length > 0 && (
         <section id="st-skills" className={t.stContentSection}>
           <div className={t.stSectionInner}>
-            <h2 className={`${t.sectionTitle} mb-5`}>
+            <h2 className={`${t.sectionTitle} mb-4`}>
               <Notepad size={13} aria-hidden />
               Skills
             </h2>
-            <div className="flex flex-col gap-6">
+            {/* Mobile: dot-list */}
+            <div className="sm:hidden flex flex-col gap-2">
+              {skillGroups.map((group) => (
+                <div key={group.label} className="flex items-baseline gap-2.5">
+                  <span className="w-20 shrink-0 text-[9px] font-semibold uppercase tracking-widest opacity-30">{group.label}</span>
+                  <span className="text-[13px] opacity-65 leading-relaxed">{group.values.join(" · ")}</span>
+                </div>
+              ))}
+            </div>
+            {/* sm+: chip groups */}
+            <div className="hidden sm:flex flex-col gap-6">
               {skillGroups.map((group) => (
                 <div key={group.label}>
                   <p className="text-[10px] font-semibold uppercase tracking-widest opacity-30 mb-2">{group.label}</p>
@@ -2113,14 +2283,7 @@ function ScrollytellingLayout({
                     <span className="text-[10px] opacity-30 tabular-nums">{exp.period}</span>
                   </div>
                   <p className="text-sm opacity-45 mb-2">{exp.org}</p>
-                  <ul className="flex flex-col gap-1.5">
-                    {exp.bullets.map((b) => (
-                      <li key={b} className="flex gap-2 text-sm opacity-40">
-                        <span aria-hidden className="mt-[4px] shrink-0 text-[8px]">▸</span>
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
+                  <ExpBulletList bullets={exp.bullets} bulletClass="opacity-40" maxMobile={2} />
                 </article>
               ))}
             </div>
@@ -2162,8 +2325,8 @@ function ModularGridLayout({
     /* Mobile: flex-col with ordering. Desktop: CSS grid from modularGrid class */
     <div className={`${t.modularGrid} flex flex-col lg:grid`}>
 
-      {/* ── HERO TILE (order-1) ── */}
-      <div className={`${t.modularHeroTile} order-1`}>
+      {/* ── HERO TILE — order-1 on mobile, lg:order-none so DOM order wins on desktop grid ── */}
+      <div className={`${t.modularHeroTile} order-1 lg:order-none`}>
         {profile.profileImageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -2395,8 +2558,18 @@ function FullscreenLayout({
         {/* Skills — order-1 mobile, order-3 desktop */}
         {!recruiterMode && skillGroups.length > 0 && (
           <section className={`${t.fsSection} order-1 lg:order-3`}>
-            <h2 className={`${t.sectionTitle} mb-6`}><Notepad size={13} aria-hidden /> Skills</h2>
-            <div className="flex flex-col gap-5">
+            <h2 className={`${t.sectionTitle} mb-4`}><Notepad size={13} aria-hidden /> Skills</h2>
+            {/* Mobile: dot-list */}
+            <div className="sm:hidden flex flex-col gap-2">
+              {skillGroups.map((group) => (
+                <div key={group.label} className="flex items-baseline gap-2.5">
+                  <span className="w-20 shrink-0 text-[9px] font-light uppercase tracking-[0.25em] opacity-30">{group.label}</span>
+                  <span className="text-[13px] opacity-65 leading-relaxed">{group.values.join(" · ")}</span>
+                </div>
+              ))}
+            </div>
+            {/* sm+: chip groups */}
+            <div className="hidden sm:flex flex-col gap-5">
               {skillGroups.map((group) => (
                 <div key={group.label}>
                   <p className="text-[10px] font-light uppercase tracking-[0.25em] opacity-30 mb-2">{group.label}</p>
@@ -2445,14 +2618,18 @@ function FullscreenLayout({
                 </div>
                 <p className="text-sm opacity-50 mb-3">{project.summary}</p>
                 {!recruiterMode && (
-                  <div className="flex flex-col gap-1 text-sm mb-3">
-                    {[{ label: "Problem", value: project.problem }, { label: "Solution", value: project.solution }, { label: "Impact", value: project.impact }].map(({ label, value }) => (
-                      <p key={label}><span className="font-medium opacity-65">{label} — </span><span className="opacity-45">{value}</span></p>
-                    ))}
-                  </div>
+                  <ProjectPSI
+                    psi={[
+                      { label: "Problem", value: project.problem },
+                      { label: "Solution", value: project.solution },
+                      { label: "Impact", value: project.impact },
+                    ]}
+                    labelClass="font-medium opacity-65"
+                    valueClass="opacity-45"
+                  />
                 )}
-                <div className="flex flex-wrap gap-1.5">
-                  {project.techStack.map((tech) => <span key={tech} className={t.chip}>{tech}</span>)}
+                <div className="mt-3">
+                  <TechChips techStack={project.techStack} t={t} />
                 </div>
               </article>
             ))}
@@ -2478,14 +2655,7 @@ function FullscreenLayout({
                     <span className="text-[10px] opacity-25 tabular-nums shrink-0">{exp.period}</span>
                   </div>
                   <p className="text-xs opacity-40 mb-2">{exp.org}</p>
-                  <ul className="flex flex-col gap-1">
-                    {exp.bullets.map((b) => (
-                      <li key={b} className="flex gap-2 text-sm opacity-38">
-                        <span aria-hidden className="mt-[4px] shrink-0 text-[8px]">▸</span>
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
+                  <ExpBulletList bullets={exp.bullets} bulletClass="opacity-38" maxMobile={2} />
                 </article>
               ))}
             </div>
@@ -2493,7 +2663,7 @@ function FullscreenLayout({
         )}
 
         {profile.plan === "free" && !recruiterMode && (
-          <footer className={t.footer}>
+          <footer className={`${t.footer} order-6`}>
             Built with{" "}
             <Link href="/" className="underline opacity-50 hover:opacity-100">foliopage</Link>
           </footer>
@@ -2586,21 +2756,18 @@ function ZPatternLayout({
               </h2>
               <p className="text-sm opacity-60 mb-4 leading-relaxed">{project.summary}</p>
               {!recruiterMode && (
-                <div className="flex flex-col gap-1.5 text-sm mb-4">
-                  {[
+                <ProjectPSI
+                  psi={[
                     { label: "Problem", value: project.problem },
                     { label: "Solution", value: project.solution },
                     { label: "Impact", value: project.impact },
-                  ].map(({ label, value }) => (
-                    <p key={label}>
-                      <span className="font-semibold opacity-75">{label} — </span>
-                      <span className="opacity-55">{value}</span>
-                    </p>
-                  ))}
-                </div>
+                  ]}
+                  labelClass="font-semibold opacity-75"
+                  valueClass="opacity-55"
+                />
               )}
-              <div className="flex flex-wrap gap-1.5 mb-4">
-                {project.techStack.map((tech) => <span key={tech} className={t.chip}>{tech}</span>)}
+              <div className="mt-3 mb-4">
+                <TechChips techStack={project.techStack} t={t} />
               </div>
               <div className="flex gap-2">
                 {project.demoUrl && (
@@ -2638,8 +2805,18 @@ function ZPatternLayout({
         <div className={`grid grid-cols-1 gap-0 ${t.divider} lg:grid-cols-3`}>
           {!recruiterMode && skillGroups.length > 0 && (
             <div className={`${t.divider} px-0 py-10 lg:border-b-0 lg:border-r lg:px-12 lg:py-12`}>
-              <h2 className={`${t.sectionTitle} mb-5`}><Notepad size={13} aria-hidden /> Skills</h2>
-              <div className="flex flex-col gap-4">
+              <h2 className={`${t.sectionTitle} mb-4`}><Notepad size={13} aria-hidden /> Skills</h2>
+              {/* Mobile: dot-list */}
+              <div className="sm:hidden flex flex-col gap-2">
+                {skillGroups.map((group) => (
+                  <div key={group.label} className="flex items-baseline gap-2.5">
+                    <span className="w-20 shrink-0 text-[9px] font-bold uppercase tracking-widest opacity-30">{group.label}</span>
+                    <span className="text-[13px] opacity-65 leading-relaxed">{group.values.join(" · ")}</span>
+                  </div>
+                ))}
+              </div>
+              {/* sm+: chip groups */}
+              <div className="hidden sm:flex flex-col gap-4">
                 {skillGroups.map((group) => (
                   <div key={group.label}>
                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-30 mb-2">{group.label}</p>
@@ -2674,14 +2851,7 @@ function ZPatternLayout({
                       <span className="text-[10px] opacity-30 tabular-nums shrink-0">{exp.period}</span>
                     </div>
                     <p className="text-xs opacity-50 mb-1.5">{exp.org}</p>
-                    <ul className="flex flex-col gap-0.5">
-                      {exp.bullets.map((b) => (
-                        <li key={b} className="flex gap-1.5 text-xs opacity-45">
-                          <span aria-hidden className="mt-[3px] shrink-0 text-[8px]">▸</span>
-                          {b}
-                        </li>
-                      ))}
-                    </ul>
+                    <ExpBulletList bullets={exp.bullets} bulletClass="opacity-45" maxMobile={2} />
                   </article>
                 ))}
               </div>
@@ -2788,8 +2958,8 @@ function FPatternLayout({
                     ))}
                   </div>
                 )}
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {leadProject.techStack.map((tech) => <span key={tech} className={t.chip}>{tech}</span>)}
+                <div className="mb-4">
+                  <TechChips techStack={leadProject.techStack} t={t} />
                 </div>
                 <div className="flex gap-2">
                   {leadProject.demoUrl && (
@@ -2832,8 +3002,18 @@ function FPatternLayout({
             {/* Skills stream — order-1 mobile, default desktop */}
             {!recruiterMode && skillGroups.length > 0 && (
               <div className={`${t.fpStreamItem} order-1 lg:order-none`}>
-                <p className={`${t.sectionTitle} mb-4`}><Notepad size={12} aria-hidden /> Skills</p>
-                <div className="flex flex-col gap-3">
+                <p className={`${t.sectionTitle} mb-3`}><Notepad size={12} aria-hidden /> Skills</p>
+                {/* Mobile: dot-list */}
+                <div className="sm:hidden flex flex-col gap-2">
+                  {skillGroups.map((group) => (
+                    <div key={group.label} className="flex items-baseline gap-2.5">
+                      <span className="w-20 shrink-0 text-[9px] font-bold uppercase tracking-[0.2em] opacity-30">{group.label}</span>
+                      <span className="text-[13px] opacity-65 leading-relaxed">{group.values.join(" · ")}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* sm+: chip groups */}
+                <div className="hidden sm:flex flex-col gap-3">
                   {skillGroups.map((group) => (
                     <div key={group.label}>
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-30 mb-1.5">{group.label}</p>
@@ -2891,14 +3071,7 @@ function FPatternLayout({
                         <span className="text-[10px] opacity-30 tabular-nums shrink-0">{exp.period}</span>
                       </div>
                       <p className="text-xs opacity-50 mb-1.5">{exp.org}</p>
-                      <ul className="flex flex-col gap-0.5">
-                        {exp.bullets.map((b) => (
-                          <li key={b} className="flex gap-1.5 text-xs opacity-50">
-                            <span aria-hidden className="mt-[3px] shrink-0 text-[8px]">▸</span>
-                            {b}
-                          </li>
-                        ))}
-                      </ul>
+                      <ExpBulletList bullets={exp.bullets} bulletClass="opacity-50" maxMobile={2} />
                     </article>
                   ))}
                 </div>
@@ -3101,10 +3274,8 @@ function ManuscriptLayout({
                   {project.title}
                 </h3>
                 <p className="mt-2 text-sm font-light text-[#e8e0d4]/35 leading-relaxed">{project.summary}</p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {project.techStack.map((tech) => (
-                    <span key={tech} className={t.chip}>{tech}</span>
-                  ))}
+                <div className="mt-3">
+                  <TechChips techStack={project.techStack} t={t} />
                 </div>
               </div>
               <div className="flex gap-2">
@@ -3178,14 +3349,7 @@ function ManuscriptLayout({
                   <p className="text-[11px] font-light tabular-nums text-[#e8e0d4]/25 mt-1">{exp.period}</p>
                 </div>
                 {/* Right: bullets */}
-                <ul className="flex flex-col gap-2.5">
-                  {exp.bullets.map((bullet) => (
-                    <li key={bullet} className="flex gap-3 text-sm font-light leading-relaxed text-[#e8e0d4]/38">
-                      <span className="mt-[5px] shrink-0 h-[1px] w-4 bg-[#c8a96e]/35" aria-hidden />
-                      {bullet}
-                    </li>
-                  ))}
-                </ul>
+                <ExpBulletList bullets={exp.bullets} bulletClass="font-light leading-relaxed text-[#e8e0d4]/38" maxMobile={2} />
               </div>
             ))}
           </div>
@@ -3214,9 +3378,9 @@ function ManuscriptLayout({
         </div>
       )}
 
-      {/* ── FOOTER — single hairline, inline ────────────────────────────── */}
+      {/* ── FOOTER ── */}
       {profile.plan === "free" && !recruiterMode && (
-        <footer className={t.footer}>
+        <footer className={`${t.footer} order-6`}>
           Built with{" "}
           <Link href="/" className="underline underline-offset-4 opacity-60 hover:opacity-100">
             foliopage
@@ -3367,31 +3531,46 @@ function VerdictLayout({
                         <p className="mt-3 text-sm font-light leading-relaxed opacity-50">
                           {project.summary}
                         </p>
-                        <div className="mt-4 flex flex-wrap gap-1.5">
-                          {project.techStack.map((tech) => (
-                            <span key={tech} className={t.chip}>{tech}</span>
-                          ))}
+                        <div className="mt-4">
+                          <TechChips techStack={project.techStack} t={t} />
                         </div>
                       </div>
 
                       {/* Right: PSI + links */}
                       {!recruiterMode && (
                         <div className="flex flex-col gap-3 border-t border-current/10 pt-4 lg:border-0 lg:pt-0 lg:border-l lg:pl-6">
-                          {[
-                            { label: "Problem", value: project.problem },
-                            { label: "Solution", value: project.solution },
-                            { label: "Impact", value: project.impact },
-                          ].map(({ label, value }) => (
-                            <div key={label}>
-                              <p
-                                className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.3em]"
-                                style={{ color: accent, opacity: 0.7 }}
-                              >
-                                {label}
-                              </p>
-                              <p className="text-xs font-light leading-relaxed opacity-45">{value}</p>
-                            </div>
-                          ))}
+                          {/* sm+: always show all three PSI blocks */}
+                          <div className="hidden sm:flex flex-col gap-3">
+                            {[
+                              { label: "Problem", value: project.problem },
+                              { label: "Solution", value: project.solution },
+                              { label: "Impact", value: project.impact },
+                            ].map(({ label, value }) => (
+                              <div key={label}>
+                                <p className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: accent, opacity: 0.7 }}>{label}</p>
+                                <p className="text-xs font-light leading-relaxed opacity-45">{value}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {/* mobile: just Problem, rest behind toggle */}
+                          <div className="sm:hidden">
+                            <p className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: accent, opacity: 0.7 }}>Problem</p>
+                            <p className="text-xs font-light leading-relaxed opacity-45">{project.problem}</p>
+                            <details className="group mt-2">
+                              <summary className="flex cursor-pointer list-none select-none items-center gap-1 py-0.5 text-[11px] font-medium opacity-35 hover:opacity-60 transition-opacity">
+                                <span className="group-open:hidden">Solution & Impact ↓</span>
+                                <span className="hidden group-open:inline">Show less ↑</span>
+                              </summary>
+                              <div className="mt-2 flex flex-col gap-3">
+                                {[{ label: "Solution", value: project.solution }, { label: "Impact", value: project.impact }].map(({ label, value }) => (
+                                  <div key={label}>
+                                    <p className="mb-0.5 text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: accent, opacity: 0.7 }}>{label}</p>
+                                    <p className="text-xs font-light leading-relaxed opacity-45">{value}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          </div>
                           <div className="mt-2 flex gap-2">
                             {project.demoUrl && (
                               <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className={t.iconBtn} aria-label="Demo">
@@ -3467,18 +3646,7 @@ function VerdictLayout({
                       </p>
                       <p className="mt-1 text-[11px] tabular-nums text-[#f5f5f0]/25">{exp.period}</p>
                     </div>
-                    <ul className="flex flex-col gap-2">
-                      {exp.bullets.map((bullet) => (
-                        <li key={bullet} className="flex gap-2.5 text-sm font-light leading-relaxed text-[#f5f5f0]/40">
-                          <span
-                            className="mt-[7px] h-px w-3 shrink-0"
-                            style={{ background: ACCENTS[ei % ACCENTS.length], opacity: 0.5 }}
-                            aria-hidden
-                          />
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
+                    <ExpBulletList bullets={exp.bullets} bulletClass="font-light leading-relaxed text-[#f5f5f0]/40" maxMobile={2} />
                   </div>
                 ))}
               </div>
@@ -3510,7 +3678,7 @@ function VerdictLayout({
 
         {/* ── FOOTER ── */}
         {profile.plan === "free" && !recruiterMode && (
-          <footer className={t.footer}>
+          <footer className={`${t.footer} order-5`}>
             Built with{" "}
             <Link href="/" className="underline underline-offset-4 opacity-60 hover:opacity-100">
               foliopage
